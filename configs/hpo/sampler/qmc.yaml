@@ -1,0 +1,19 @@
+# https://optuna.readthedocs.io/en/stable/reference/samplers/generated/optuna.samplers.QMCSampler.html 
+
+# Quasi Monte Carlo (QMC) sequences are designed to have lower discrepancies than standard random sequences. 
+# They are known to perform better than the standard random sequences in hyperparameter optimization.
+
+cfg:
+  _target_: optuna.samplers.QMCSampler
+  
+  # can be "sobol" or "halton"
+  # -> if using sobol, it is recommended that the number of trials should be set as power of two.
+  qmc_type: sobol
+  
+  # Scrambling is capable of producing better Sobol sequences.
+  scramble: true
+  
+  # seed for the RNG
+  seed: ${seed}
+
+name: qmc

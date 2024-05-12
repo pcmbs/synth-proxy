@@ -1,0 +1,28 @@
+_target_: models.lit_module.PresetEmbeddingLitModule
+_convert_: all # somehow resolves an omegaconf missing key error during trainer.fit setup
+
+wandb_watch_args:
+  log: null
+  log_freq: 100 
+
+loss:
+  _target_: torch.nn.L1Loss
+
+optimizer:
+  _target_: torch.optim.AdamW
+  _partial_: true
+  weight_decay: 0.0
+
+# Learning Rate
+lr: 1e-3
+
+# LR scheduler
+scheduler:
+    _target_: utils.lr_schedulers.wcrc_scheduler_builder
+    _partial_: true
+    min_lr: 2e-6
+    num_warmup_steps: 7500
+    warmup_factor: 1.0
+    num_decay_steps: 192_500 # warmup+cosine corresponds to 10 epochs at bs=512
+    # num_restart_steps: 2000
+    restart_factor: 0.5

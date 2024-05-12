@@ -1,0 +1,4 @@
+cfg:
+  _target_: optuna.pruners.NopPruner
+
+name: nop

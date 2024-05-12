@@ -1,0 +1,33 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Test, env, vscode, etc.
+.env
+*.egg-info
+.pytest_cache/
+.vscode/
+.devcontainer/
+.venv/
+.python-version
+others/
+
+# Artifacts
+checkpoints/**
+!checkpoints/.gitkeep
+logs/
+lightning_logs/
+wandb/
+
+# data
+data/synths
+data/datasets/**/**
+!data/datasets/.gitkeep
+
+# reports
+results/**/**
+!results/.gitkeep

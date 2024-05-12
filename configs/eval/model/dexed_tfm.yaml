@@ -1,0 +1,28 @@
+# @package _global_
+
+defaults:
+  - override /synth: dexed
+
+model: 
+  cfg: 
+    _target_: models.preset.tfm
+    pe_type: absolute
+    hidden_features: 256
+    num_blocks: 6
+    num_heads: 8
+    mlp_factor: 4.0
+    pooling_type: cls
+    last_activation: ReLU
+    pe_dropout_p: 0.0
+    block_activation: relu
+    block_dropout_p: 0.0
+
+  type: tfm
+  val_mrr: 0.9537
+  val_loss: 0.0433
+  epoch: 27
+  num_train_epochs: 29
+
+  ckpt_name: dexed_tfm_e27_mrr0.9537.ckpt
+
+task_name: dexed_tfm

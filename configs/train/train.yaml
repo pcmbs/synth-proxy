@@ -1,0 +1,60 @@
+# @package _global_
+ 
+defaults:
+  - _self_
+
+  - train_dataset: talnm_mn04_v1
+  - val_dataset: talnm_mn04_v1
+  - m_preset: ??? # preset model, to be overwritten in experiment
+  - solver: default
+  - callbacks: default
+  - trainer: gpu
+  - hydra: default
+  - logger: wandb 
+  - paths: default 
+
+  # experiment configs allow for version control of specific hyperparameters
+  # e.g. best hyperparameters for given model and datamodule
+  - experiment: null
+
+  # debugging config (enable through command line, e.g. `python train.py debug=default)
+  - debug: null 
+
+# task name, determines output directory path (will be overwritten in experiment configs)
+task_name: train
+
+# tags to help you identify your experiments
+# you can overwrite this in experiment configs
+# overwrite from command line with `python train.py tags="[first_tag, second_tag]"`
+tags: 
+  - ${task_name}
+  - ${train_dataset.name}
+  - ${m_preset.name}
+
+# seed for random number generators in pytorch, numpy and python.random
+seed: 42
+
+# Resuming training from the beginning of the last epoch of a previous run can be done by
+# (i): setting cpkt_path to "last"
+# (ii): passing the correct run_id to resume (can be found in <run_dir>/wandb/run-<date>_<time>-<RUN_ID>
+#       or in the link to the wandb run page)
+#       -> this step can be omitted to create a new wandb run 
+# (iii): set hydra.run.dir to the previous run_dir
+# Ex: $ python src/train.py experiment=<experiment-name> hydra.run.dir=<run_dir> run_id=<run_id> 
+# Remarks: 
+# - the same run directory as the previous run will be used
+# - the existing wandb will be resumed (values writen after the global_step in the last.ckpt will be overwritten 
+#   e.g., if training was interrupted mid-epoch) 
+# - if the wandb run is not found, a new run will be created
+# - a new wandb run folder will be created in <run_dir>/wandb 
+# - previous top-k checkpoints will not be considered and might be deleted manually afterwards if needed
+# - don't forget to increase max_epochs in the trainer config if needed
+
+# To resume from another checkpoint of a previous run it is recommended to only set ckpt_path to the checkpoint you want to resume from
+# This will create a new run_dir and wandb run
+
+ckpt_path: last # resume from beginning of the current epoch. Overwrite if necessary.
+run_id: null # pass a correct id to resume experiment
+
+# Disable Lightning's SLURMEnvironment plugin on HPC by default, can be overwritten in experiments
+deactivate_slurm_lightning: True

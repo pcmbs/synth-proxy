@@ -1,0 +1,23 @@
+# https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.ModelCheckpoint.html 
+
+# keep k-top on validation (MMR)
+
+# Note that this checkpoint should not be used to resume training if the 
+# due to the save_on_train_epoch_end=False
+# (use)
+
+ckpt_val:
+  _target_: lightning.pytorch.callbacks.ModelCheckpoint
+  dirpath: ${paths.output_dir}/checkpoints # directory to save the model file
+  filename: ${task_name}_e{epoch}_mrr{val/mrr:.4f}
+  auto_insert_metric_name: False # when True, the checkpoints filenames will contain the metric name
+  
+  monitor: "val/mrr" # name of the logged metric which determines when model is improving
+  mode: max # max/min means higher/lower metric value is better
+
+  save_last: null # additionally always save an exact copy of the last checkpoint to a file last.ckpt
+  save_top_k: 1 # save k best models (determined by above metric)
+
+  every_n_epochs: 1 # number of epochs between checkpoints
+  # run checkpointing at the end of the validation epoch (can be several times per training epoch)
+  save_on_train_epoch_end: False 

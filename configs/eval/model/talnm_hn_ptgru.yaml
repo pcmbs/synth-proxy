@@ -1,0 +1,25 @@
+# @package _global_
+
+defaults:
+  - override /synth: talnm
+
+model: 
+  cfg: 
+    _target_: models.preset.hn_ptgru
+    hidden_features: 768
+    num_blocks: 6
+    token_dim: 384
+    pe_dropout_p: 0.0
+    block_norm: BatchNorm1d
+    block_act_fn: ReLU
+    block_dropout_p: 0.0
+
+  type: hn_ptgru
+  val_mrr: 0.9935
+  val_loss: 0.0465
+  epoch: 27
+  num_train_epochs: 29
+
+  ckpt_name: talnm_hn_ptgru_e27_mrr0.9935.ckpt
+
+task_name: talnm_hn_ptgru

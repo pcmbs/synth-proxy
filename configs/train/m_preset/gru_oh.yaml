@@ -1,0 +1,7 @@
+cfg:
+  _target_: models.preset.gru_oh
+  hidden_features: 1024 
+  num_layers: 1 
+  dropout_p: 0.0
+
+name: gru_oh

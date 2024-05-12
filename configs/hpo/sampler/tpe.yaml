@@ -1,0 +1,9 @@
+cfg:
+ _target_: optuna.samplers.TPESampler
+ n_startup_trials: 25
+ multivariate: true
+ group: true
+ seed: ${seed}
+ warn_independent_sampling: false
+
+name: tpe

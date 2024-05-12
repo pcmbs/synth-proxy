@@ -1,0 +1,78 @@
+# @package _global_
+
+m_preset:
+  cfg:
+    _target_: models.preset.mlp_oh
+    block_norm: BatchNorm1d
+    block_act_fn: ReLU
+    block_dropout_p: 0.0
+  
+  name: mlp_oh 
+
+search_space:
+  ##### Architecture HPs
+  # number of blocks for the preset encoder (linear scale)
+  num_blocks: 
+    type: int
+    kwargs:
+      name: num_blocks
+      low: 1
+      high: 2
+  
+  # number of hidden features for the preset encoder (linear scale)
+  hidden_features: 
+    type: int
+    kwargs:
+      name: hidden_features
+      low: 512
+      high: 3072
+      step: 512
+  
+  
+  ##### scheduler HPs  
+  # starting learning rate
+  base_lr: 
+    type: float
+    kwargs:
+      name: base_lr
+      low: 1e-4
+      high: 0.02
+      log: true
+  
+  # scheduler factor for final lr
+  min_lr_factor:
+    type: float
+    kwargs:
+      name: min_lr_factor
+      low: 1e-6
+      high: 1
+      log: true
+  
+  
+  ##### Adam HPs
+  # Exp decay rate for 1st moment estimate
+  beta1:
+    type: float
+    kwargs:
+      name: beta1
+      low: 0.75
+      high: 0.95
+      step: 0.001
+  
+  # Exp decay rate for 1st moment estimate
+  beta2:
+    type: float
+    kwargs:
+      name: beta2
+      low: 0.85
+      high: 0.999
+      step: 0.001
+  
+  # epsilon for numerical stability
+  eps:
+    type: float
+    kwargs:
+      name: eps
+      low: 0.0000000001
+      high: 0.0001
+    log: true

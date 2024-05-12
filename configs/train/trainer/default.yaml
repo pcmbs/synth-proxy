@@ -1,0 +1,30 @@
+_target_: lightning.pytorch.trainer.Trainer
+
+# Default path for logs and weights when no logger or ModelCheckpoint callback passed
+default_root_dir: ${paths.output_dir}
+
+# min/max number of trainig steps/epochs (mostly defined in experiments)
+max_epochs: 10
+
+accelerator: cpu
+devices: 1
+
+# mixed precision for extra speed-up (default to 32)
+# precision: 16
+
+# how often to log (does not write to disk). (Default: 50)
+log_every_n_steps: 250
+
+# How often to check the validation set. Pass a float in the range [0.0, 1.0] 
+# to check after a fraction of the training epoch. (Default: 1)
+val_check_interval: 0.5 # 2 times per epoch since we have a large train set
+
+# Enable anomaly detection for the autograd engine
+detect_anomaly: False
+
+# set True to to ensure deterministic results
+# makes training slower but gives more reproducibility than just setting seeds
+deterministic: False
+
+# if speedup is needed without deterministic results
+# benchmark: True

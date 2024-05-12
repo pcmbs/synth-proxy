@@ -1,0 +1,10 @@
+cfg:
+  _target_: models.preset.resnet_oh
+  hidden_features: 768
+  num_blocks: 16
+  block_norm: BatchNorm1d
+  block_act_fn: ReLU
+  block_dropout_p: 0.0
+  block_residual_dropout_p: 0.0
+
+name: resnet_oh

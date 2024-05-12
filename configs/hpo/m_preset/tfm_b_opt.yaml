@@ -1,0 +1,80 @@
+# @package _global_
+
+m_preset:
+  cfg:
+    _target_: models.preset.tfm
+    num_blocks: 6
+    hidden_features: 256
+    num_heads: 8
+    mlp_factor: 4.0
+    pe_type: absolute
+    pooling_type: cls
+    last_activation: ReLU
+    block_activation: relu
+    block_dropout_p: 0.0
+    pe_dropout_p: 0.0
+
+  name: tfm
+
+# Following necessary, otherwise this is really too slow
+batch_size: 256
+
+# should be set to something like 3/4 * (1e6 * train_dataset_size_factor) // batch_size
+# to account for different batch_size and train_dataset_size_factor
+# LR scheduler
+lr_scheduler:
+  milestone: 3000
+
+trainer:
+  max_epochs: 1
+  log_every_n_steps: 50
+  val_check_interval: 1.0
+
+search_space:
+  ##### scheduler HPs
+  # starting learning rate
+  base_lr: 
+    type: float
+    kwargs:
+      name: base_lr
+      low: 1e-5
+      high: 8e-3
+      log: true
+
+  # final lr factor for scheduler 
+  min_lr_factor:
+    type: float
+    kwargs:
+      name: min_lr_factor
+      low: 1e-6
+      high: 1
+      log: true
+
+
+  ##### Adam HPs
+  # Exp decay rate for 1st moment estimate
+  beta1:
+    type: float
+    kwargs:
+      name: beta1
+      low: 0.85
+      high: 0.95
+      step: 0.001
+
+  # Exp decay rate for 1st moment estimate
+  beta2:
+    type: float
+    kwargs:
+      name: beta2
+      low: 0.95
+      high: 0.999
+      step: 0.001
+
+  # epsilon for numerical stability
+  eps:
+    type: float
+    kwargs:
+      name: eps
+      low: 1e-10
+      high: 1e-6
+      log: true

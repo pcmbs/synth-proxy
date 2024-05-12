@@ -1,0 +1,47 @@
+# @package _global_
+
+# Config file for the evaluation procedure.
+# Associated code can be found in src/eval.py
+
+defaults:
+  - _self_
+  - synth: ???
+  - model: ???
+  - hydra: default
+  - wandb: default 
+  - paths: default 
+
+# Subset size for the handcrafted preset dataset used for evaluation.
+# This should allow for fairer comparison between synthesizer, since a 
+# higher of presets make a given MRR value harder to achieve.
+# Passing -1, 0, or a number larger than the size of the dataset 
+# will result in using the full dataset.
+subset_size: 4096
+
+# Whether or not to perform the random incremential evaluation
+random_incremential: False
+
+# Whether or not to perform the non-overlapping random evaluation
+# We finally decided not to use this one since it is easier than 
+# the eval on hand-crafted presets
+random_non_overlapping: False
+
+# Number of times to repeat the evaluation
+# Note that this will not apply to the random incremential evaluation
+# and the ranks_dict+top_mrr will be taken from the last run
+num_runs: 100
+
+# task name determines output directory path (overwritten in model cfg)
+task_name: ""
+
+tags: 
+  - ${synth.name}
+  - ${model.type}
+
+ckpt_path: ${paths.ckpt_dir}/${model.ckpt_name}
+
+# seed for random number generators in pytorch, numpy and python.random
+seed: 42
+
+# device on which to run the evaluation
+device: cuda

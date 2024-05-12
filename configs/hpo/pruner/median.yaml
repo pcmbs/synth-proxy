@@ -1,0 +1,6 @@
+cfg:
+  _target_: optuna.pruners.MedianPruner
+  n_startup_trials: 5
+  n_warmup_steps: 0
+
+name: median

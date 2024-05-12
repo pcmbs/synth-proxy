@@ -1,0 +1,5 @@
+cfg:
+  _target_: optuna.samplers.RandomSampler
+  seed: ${seed}
+
+name: random

@@ -1,0 +1,23 @@
+# @package _global_
+
+defaults:
+  - override /synth: diva
+
+model: 
+  cfg: 
+    _target_: models.preset.mlp_oh
+    hidden_features: 2048
+    num_blocks: 1
+    block_norm: BatchNorm1d
+    block_act_fn: ReLU
+    block_dropout_p: 0.0
+
+  type: mlp_oh
+  val_mrr: 0.5633
+  val_loss: 0.0735
+  epoch: 27
+  num_train_epochs: 29
+
+  ckpt_name: diva_mlp_oh_e27_mrr0.5633.ckpt
+
+task_name: diva_mlp_oh

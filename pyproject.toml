@@ -1,0 +1,7 @@
+[project]
+name = "local_packages"
+version = "0.1.0"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false

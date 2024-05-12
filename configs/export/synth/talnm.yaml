@@ -1,0 +1,17 @@
+### PresetHelper settings
+
+# synthesizer used to generate the dataset
+name: talnm
+
+# synthesizer parameters to exclude when generating presets (support asterisk for excluding a group of parameters)
+parameters_to_exclude_str: 
+  - "master_volume"
+  - "voices"
+  - "lfo_1_sync"
+  - "lfo_1_keytrigger"
+  - "lfo_2_sync"
+  - "lfo_2_keytrigger"
+  - "envelope*"
+  - "portamento*"
+  - "pitchwheel*"
+  - "delay*"

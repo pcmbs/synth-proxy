@@ -1,0 +1,25 @@
+# @package _global_
+
+defaults:
+  - override /synth: diva
+
+model: 
+  cfg: 
+    _target_: models.preset.hn_pt
+    hidden_features: 512
+    num_blocks: 6
+    token_dim: 64
+    pe_dropout_p: 0.0
+    block_norm: BatchNorm1d
+    block_act_fn: ReLU
+    block_dropout_p: 0.0
+  
+  type: hn_pt
+  val_mrr: 0.7817
+  val_loss: 0.0629
+  epoch: 27
+  num_train_epochs: 29
+
+  ckpt_name: diva_hn_pt_e27_mrr0.7817.ckpt
+
+task_name: diva_hn_pt

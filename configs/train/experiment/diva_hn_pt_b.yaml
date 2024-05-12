@@ -1,0 +1,48 @@
+# @package _global_
+
+defaults:
+  - override /train_dataset: diva_mn04_v1
+  - override /val_dataset: diva_mn04_v1
+  - override /m_preset: hn_pt
+
+task_name: diva_hn_pt_b
+
+########## hyperparameters 
+
+m_preset: # 8_414_125 parameters 
+  cfg:
+    num_blocks: 6
+    hidden_features: 512
+    token_dim: 64
+
+solver:
+  lr: 4e-3
+  
+  optimizer:
+    betas:
+      - 0.930
+      - 0.987
+    eps: 2e-7
+
+  scheduler:
+    min_lr: 2e-6
+    num_warmup_steps: 7500
+    warmup_factor: 1.0
+    num_decay_steps: 192_500 # warmup+cosine corresponds to 10 epochs at bs=512
+    num_restart_steps: 400_000 # 20 epochs
+    restart_factor: 1.0 # full restart
+
+########## training setup
+train_dataset:
+  loader:
+    batch_size: 512
+
+trainer:
+  # kwargs for lightning trainer
+  max_epochs: 30
+
+  # set True to to ensure deterministic results
+  # makes training slower but gives more reproducibility than just setting seeds
+  deterministic: True
+
+# ckpt_path: ${paths.ckpt_dir}/restart/diva_hn_pt_b_re20.ckpt

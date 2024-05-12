@@ -1,0 +1,38 @@
+# @package _global_
+
+# Config file used to concatenate synthetic preset datasets for a given synthesizer
+# Didn't need that at the end... 
+
+############ Export path Settings
+# Path relative to the project root where the dataset will be exported
+export_relative_path: data/datasets
+
+# keys to retrieve folder name present in the export_relative_path
+synth: talnm
+audio_fe: mn04
+dataset_size: ???
+seed_offset: ???
+tag: ???
+
+# whether to delete the subset pkl files after concatenation
+delete_subsets: True
+
+############ Hydra stuff
+# disable output directory
+root_dir: ${oc.env:PROJECT_ROOT}
+
+hydra:
+  output_subdir: null
+  run:
+    dir: ${root_dir}/${export_relative_path}/${synth}_${audio_fe}_size=${dataset_size}_seed=${seed_offset}_${tag}
+
+  job: 
+    chdir: True
+
+  job_logging:
+    handlers:
+      file:
+        filename: ${hydra.runtime.output_dir}/cat_dataset.log
+    formatters:
+      simple:
+        format: '%(message)s'

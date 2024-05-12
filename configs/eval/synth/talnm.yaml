@@ -1,0 +1,5 @@
+dataset_path: ${paths.root_dir}/data/datasets/eval/talnm_mn04_eval_v1
+
+rnd_dataset_path: ${paths.root_dir}/data/datasets/eval/talnm_mn04_size=131072_seed=600_test_v1
+
+name: talnm

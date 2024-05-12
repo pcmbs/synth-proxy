@@ -1,0 +1,9 @@
+cfg:
+  _target_: models.preset.mlp_oh
+  hidden_features: 2048
+  num_blocks: 1
+  block_norm: BatchNorm1d
+  block_act_fn: ReLU
+  block_dropout_p: 0.0
+
+name: mlp_oh

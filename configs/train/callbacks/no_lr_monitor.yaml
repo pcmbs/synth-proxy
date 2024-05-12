@@ -1,0 +1,9 @@
+# model checkpoint callbacks are added in experiments
+
+defaults:
+  - ckpt_last
+  - ckpt_every5e
+  - ckpt_mrr
+  - ckpt_loss
+  - rich_progress_bar
+

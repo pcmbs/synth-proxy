@@ -1,0 +1,16 @@
+# https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.ModelCheckpoint.html 
+
+# save a checkpoint at the end of every n-th epochs
+
+ckpt_every5e:
+  _target_: lightning.pytorch.callbacks.ModelCheckpoint
+  dirpath: ${paths.output_dir}/checkpoints # directory to save the model file
+  filename: e{epoch}
+  auto_insert_metric_name: False # when True, the checkpoints filenames will contain the metric name
+  every_n_epochs: 5 # number of epochs between checkpoints
+  save_on_train_epoch_end: True # run checkpointing at the end of the training epoch
+  save_top_k: -1 # save all checkpoints
+  # save_last: When True, saves a last.ckpt copy whenever a checkpoint file gets saved. 
+  # Can be set to 'link' on a local filesystem to create a symbolic link. 
+  # This allows accessing the latest checkpoint in a deterministic manner. Default: None.
+  # save_last: link

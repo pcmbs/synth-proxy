@@ -1,0 +1,12 @@
+# enter the path to the pkl dataset folder for the MMR validation
+path: ${paths.root_dir}/data/datasets/diva_mn04_size=131072_seed=401_val_v1
+
+loader:
+  # dataloader batch size corresponds to the number ranking evaluation to compute 
+  # the mean from (the resulting number of samples per evaluation is thus dataset_size // num_ranks)
+  # so num_ranks = 256 and dataset_size = 131072, corresponds to 256 ranking evaluations, each containing 
+  # 1 target amongst 512 candidates
+  num_ranks: 256
+  num_workers: 8
+
+name: diva_mn04_val_v1

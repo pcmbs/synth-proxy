@@ -1,0 +1,23 @@
+# @package _global_
+
+defaults:
+  - override /synth: diva
+
+model: 
+  cfg: 
+    _target_: models.preset.hn_oh
+    hidden_features: 768
+    num_blocks: 6
+    block_norm: BatchNorm1d
+    block_act_fn: ReLU
+    block_dropout_p: 0.0
+
+  type: hn_oh
+  val_mrr: 0.8159
+  val_loss: 0.0548
+  epoch: 28
+  num_train_epochs: 29
+
+  ckpt_name: diva_hn_oh_e28_loss0.0548.ckpt
+
+task_name: diva_hn_oh

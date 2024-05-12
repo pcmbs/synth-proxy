@@ -1,0 +1,44 @@
+# @package _global_
+
+defaults:
+  - override /train_dataset: diva_mn04_v1
+  - override /val_dataset: diva_mn04_v1
+  - override /m_preset: highway_oh
+
+task_name: diva_highway_oh_s
+
+########## hyperparameters 
+
+m_preset: # 1_878_189 parameters
+  cfg:
+    num_blocks: 4
+    hidden_features: 512
+
+solver:
+  lr: 4e-3
+  optimizer:
+    betas:
+      - 0.93
+      - 0.987
+    eps: 2e-7
+
+  scheduler:
+    min_lr: 2e-6
+    num_warmup_steps: 7500
+    warmup_factor: 1.0
+    num_decay_steps: 192_500 # warmup+cosine corresponds to 10 epochs at bs=512
+    num_restart_steps: null
+
+########## training setup
+train_dataset:
+  loader:
+    batch_size: 512
+
+trainer:
+  # kwargs for lightning trainer
+  max_epochs: 10
+  
+  # set True to to ensure deterministic results
+  # makes training slower but gives more reproducibility than just setting seeds
+  deterministic: True
+  

@@ -1,0 +1,25 @@
+# @package _global_
+
+defaults:
+  - override /synth: dexed
+
+model: 
+  cfg: 
+    _target_: models.preset.hn_ptgru
+    hidden_features: 768
+    num_blocks: 6
+    token_dim: 384
+    pe_dropout_p: 0.0
+    block_norm: BatchNorm1d
+    block_act_fn: ReLU
+    block_dropout_p: 0.0
+
+  type: hn_ptgru
+  val_mrr: 0.8899
+  val_loss: 0.0506
+  epoch: 28
+  num_train_epochs: 29
+
+  ckpt_name: dexed_hn_ptgru_e28_loss0.0506.ckpt
+
+task_name: dexed_hn_ptgru
