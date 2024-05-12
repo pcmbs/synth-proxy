@@ -48,7 +48,7 @@ PRINT_LATEX = False
 # if a single folder is present, set it to None
 SUFFIX = None
 # Directory where to export the results
-EXPORT_DIR = PROJECT_ROOT / "reports" / "eval"
+EXPORT_DIR = PROJECT_ROOT / "results" / "eval"
 
 if __name__ == "__main__":
 
