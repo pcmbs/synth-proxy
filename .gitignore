@@ -22,6 +22,7 @@ checkpoints/**
 logs/
 lightning_logs/
 wandb/
+!configs/eval/wandb
 
 # data
 data/synths
