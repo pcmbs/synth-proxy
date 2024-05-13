@@ -4,8 +4,8 @@
 ## Introduction
 Code source repository for my master's thesis on Neural Proxies for Sound Synthesizers.
 
-**Overview**
-: This work presents a simple method for approximating black-box sound synthesizers and aims to overcome the limitations associated with parameter loss in neural-based methods for Automatic Synthesizer Programming (nASP) in handling the highly nonlinear relationship between synthesizer parameters and synthesized audio. \
+### Overview
+This work presents a simple method for approximating black-box sound synthesizers and aims to overcome the limitations associated with parameter loss in neural-based methods for Automatic Synthesizer Programming (nASP) in handling the highly nonlinear relationship between synthesizer parameters and synthesized audio. \
 The proposed method relies on training a neural network capable of mapping synthesizer presets onto a perceptually informed embedding space defined by a pretrained audio model. More specifically, given a preset $\underline{x} \in \mathcal{P}\_s$ from a synthesizer $s$ with parameter space $\mathcal{P}\_s$, a preset encoder $f_{\underline{\theta}}$ learns to minimize the distance between its representation of $\underline{x}$ and that produced by a pretrained audio model $g_{\underline{\phi}}$, derived from the synthesized audio $s(\underline{x}, \underline{\omega})=\underline{x}_a$ with MIDI parameters $\underline{\omega} \in \Omega$. This process effectively creates a neural proxy for a given synthesizer by leveraging the audio representations learned by the pretrained model via a cross-modal knowledge distillation task. \
 The effectiveness of various neural network architectures, including feedforward, recurrent, and transformer-based models, in encoding synthesizer presets was evaluated using the mean reciprocal rank and averaged $L^1$ error on both synthetic and hand-crafted presets from three popular software synthesizers. Encouraging results were obtained for all synthesizers, paving the way for future research into the application of synthesizer proxies for nASP methods focusing on non-differentiable, black-box synthesizers
 
@@ -41,7 +41,7 @@ Create a `.env` file in the project root directory with the following content:
 PROJECT_ROOT=/path/to/project/root/
 WANDB_API_KEY=this-is-optional
 ```
-Note: 
+Note:
 - Set `PROJECT_ROOT=/workspace` if you are using the provided Dockerfile.
 - The `WANDB_API_KEY` is optional and can be omitted if you do not wish to log results to WandB.
 
