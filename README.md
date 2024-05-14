@@ -15,7 +15,7 @@ The effectiveness of various neural network architectures, including feedforward
 
 ## Reproducibility
 
-This section offers a detailed guide to replicate the results outlined in the paper. The project was developed on a laptop running Windows, equipped with an Intel-i7 CPU and an RTX 2060 GPU (6GB VRAM), using Docker (through WSL2) with the provided Dockerfile. Additional testing were conducted in a virtual environment using Python 3.10.11 and pip as dependencies manager.  
+This section offers a detailed guide to replicate the results outlined in the paper. The project was developed on a Windows laptop equipped with an Intel i7 CPU and an RTX 2060 GPU (6GB VRAM), using Docker (through WSL2) with the provided Dockerfile. Most of the training was performed on a NVIDIA Tesla P100. Additional testing were conducted in a virtual environment using Python 3.10.11 and pip as dependencies manager.  
 
 ### Step-by-Step Guide
 
