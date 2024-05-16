@@ -30,19 +30,25 @@ class SynthParameter:
         """
         Class holding the information of a synthesizer parameter.
 
+
         Args:
-            index (int): The index of the synth parameter.
-            name (str): The name of the synth parameter.
-            type_ (str): The type of the synth parameter. Must be one of "num", "cat", "bin".
-            default_value (float, optional): The default value of the synth parameter. (defaults: 0.0).
-            cardinality (int, optional): The cardinality of the synth parameter.
-            -1 for continuous, i.e., numerical synth parameter (assuming a cardinality of 100) (defaults: -1).
-            cat_values (np.ndarray, optional): The categorical values of the synth parameter (only for categorical and binary synth parameters).
-            Will be inferred from `cardinality` if None is given for a categorical or binary parameter. (defaults: None)
-            interval (Tuple[float], optional): The interval of the synth parameter (only for continuous synth parameter).
-            This can be used to restrict the range of the synth parameter (defaults: (0.0, 1.0))
-            excluded_cat_idx (Tuple[int], optional): The excluded categorical indices of the synth parameter
-            (only for categorical and binary synth parameters). Defaults to None.
+            index (int): The parameter index.
+            name (str): The parameter name.
+            type_ (str): The parameter type. Must be one of "num", "cat", "bin".
+            default_value (float, optional): The default parameter value. (defaults: 0.0).
+            cardinality (int, optional): The parameter cardinality, where -1 is used for continuous
+            numerical parameters (assuming a cardinality of 100) (Defaults: -1).
+            cat_values (np.ndarray, optional): The possible values taken by the parameter.
+            This is intended for discrete parameters only (i.e., discrete numerical, categorical,
+            and binary parameters). Will be inferred from `cardinality` if None and set to
+            None for continuous numeri-cal parameters. (Defaults: None)
+            cat_weights (np.ndarray, optional): The weights used for sampling if this parameter is discrete.
+            Should be set to None for continuous numerical parameters. (Defaults: None)
+            interval (Tuple[float], optional): The interval of valid parameter values (only for continuous
+            numerical parameters). This can be used to restrict the acceptable range of the parameter
+            (Defaults: (0.0, 1.0))
+            excluded_cat_idx (Tuple[int], optional): The excluded categories (given as indices) for discrete
+            parameter. (Defaults: None).
         """
         assert index >= 0
 

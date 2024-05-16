@@ -1,5 +1,12 @@
 """
-Helper class representing the configuration of a synthesizer.
+Helper class uses to facilitate: 
+- the synthetic presets generation process by grouping synthesizer parameters by types, cardinality, etc., 
+  such that values for parameters with the same characteristics can be sampled simultaneously. 
+- the preset input encoding, by making the parameter types, cardinalities, etc., easily accessible 
+  to the class implementing the input encoding function.
+
+Synthesizer are internally represented as a sequence of SynthParameter instances. 
+The sequence specific to a synthesizer can be found in `./src/data/synths/<synth-name>.py
 """
 
 from typing import List, Sequence, Tuple
@@ -8,7 +15,15 @@ import data.synths
 
 class PresetHelper:
     """
-    Helper class representing the configuration of a synthesizer.
+    Helper class uses to facilitate:
+
+    - the synthetic presets generation process by grouping synthesizer parameters by types, cardinality, etc.,
+    such that values for parameters with the same characteristics can be sampled simultaneously.
+    - the preset input encoding, by making the parameter types, cardinalities, etc., easily accessible
+    to the class implementing the input encoding function.
+
+    Synthesizer are internally represented as a sequence of SynthParameter instances.
+    The sequence specific to a synthesizer can be found in `./src/data/synths/<synth-name>.py
     """
 
     def __init__(
@@ -17,14 +32,15 @@ class PresetHelper:
         parameters_to_exclude: Sequence[str] = (),
     ):
         """
-        Helper class to generate random presets for a given synthesizer.
+        Helper class for a given synthesizer used to facilitate the synthetic data generation process
+        and presets input encodings.
 
         Args:
-            parameters (Sequence[Union[EmptyParameter, SettingsParameter, SynthParameter]]): synthesizer parameters
-            parameters_to_exclude (Sequence[str]): list of parameters to exclude, i.e, parameters that are kept fixed
-            during while rendering a preset and are not inputs to the preset encoder. Can be the full name or a pattern
-            that appears at the {begining, end}. In the later, the pattern must be {followed, preceded} by a "*". (default: ())
-            synth_name (str): name of the synthesizer
+            synth_name (str): name of the synthesizer. This will allow to retrieve the corresponding synthesizer representation
+            from `./src/data/synths`.
+            parameters_to_exclude (Sequence[str]): list of parameters to exclude, i.e, parameters that are kept to their default value
+            during the data generation process and are not inputs to the preset encoder. Can be the full name or a pattern
+            that appears at the {begining, end}. In the latter, the pattern must be {followed, preceded} by a "*". (default: ())
         """
         if synth_name in ["talnm", "dexed", "diva"]:
             parameters = getattr(data.synths, synth_name).SYNTH_PARAMETERS

@@ -1,5 +1,5 @@
 """
-Module to generate a dataset of hand-crafted presets given a existing dataset of presets stored in a json file 
+Script to generate a dataset of hand-crafted presets given a existing dataset of presets stored in a json file 
 Only the synthesizer parameters used during training (i.e., for generating the training dataset) are 
 considered; the remaining parameters are set to their default values and excluded, and
 silent and duplicate presets are removed.

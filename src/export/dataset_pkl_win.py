@@ -3,7 +3,7 @@
 Module to be run from the command line (on Windows) used to generate audio embeddings
 from a given audio model together with the corresponding synth parameters. 
 
-See `export_dataset_pkl_cfg.yaml` for more details.
+See `configs/export/dataset_pkl.yaml` for more details.
 
 The results are exported to
 `<project-root>/<export-relative-path>/<synth>_<audio_fe>_<dataset-size>_<seed-offset>_pkl_<tag>`

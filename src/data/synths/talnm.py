@@ -1,11 +1,9 @@
 from utils.synth import SynthParameter
 
-# TODO: add motivation for category weights, modified interval, and excluded params
-
 SYNTH_NAME = "talnm"
 
 SYNTH_PARAMETERS = (
-    # SynthParameter(index=0, name="-", type_="num", default_value=0.5),
+    # SynthParameter(index=0, name="-", type_="num", default_value=0.5), # not a synthesis parameter
     SynthParameter(index=1, name="master_volume", type_="num", default_value=0.40800002217292786),
     SynthParameter(index=2, name="filter_type", type_="cat", cardinality=12, default_value=0.0),
     SynthParameter(index=3, name="filter_cutoff", type_="num", default_value=1.0),
@@ -29,12 +27,20 @@ SYNTH_PARAMETERS = (
     SynthParameter(index=21, name="osc_1_fine_tune", type_="num", default_value=0.5),
     SynthParameter(index=22, name="osc_2_fine_tune", type_="num", default_value=0.5),
     SynthParameter(
-        index=23, name="osc_1_waveform", type_="cat", cardinality=3, cat_weights=(0.45, 0.45, 0.1)
+        index=23,
+        name="osc_1_waveform",
+        type_="cat",
+        cardinality=3,
+        cat_weights=(0.45, 0.45, 0.1),  # not too much noise
     ),
     SynthParameter(index=24, name="osc_2_waveform", type_="cat", cardinality=5),
     SynthParameter(index=25, name="osc_sync", type_="bin"),
-    SynthParameter(index=26, name="lfo_1_waveform", type_="cat", cardinality=6, excluded_cat_idx=(4,)),
-    SynthParameter(index=27, name="lfo_2_waveform", type_="cat", cardinality=6, excluded_cat_idx=(4,)),
+    SynthParameter(
+        index=26, name="lfo_1_waveform", type_="cat", cardinality=6, excluded_cat_idx=(4,)
+    ),  # no S&H waveform for reproducibility
+    SynthParameter(
+        index=27, name="lfo_2_waveform", type_="cat", cardinality=6, excluded_cat_idx=(4,)
+    ),  # no S&H waveform for reproducibility
     SynthParameter(index=28, name="lfo_1_rate", type_="num"),
     SynthParameter(index=29, name="lfo_2_rate", type_="num"),
     SynthParameter(index=30, name="lfo_1_amount", type_="num", default_value=0.5),
@@ -75,7 +81,9 @@ SYNTH_PARAMETERS = (
     SynthParameter(index=58, name="chorus_1_enable", type_="bin"),
     SynthParameter(index=59, name="chorus_2_enable", type_="bin"),
     SynthParameter(index=60, name="reverb_wet", type_="num"),
-    SynthParameter(index=61, name="reverb_decay", type_="num", default_value=0.5, interval=(0.0, 0.6)),
+    SynthParameter(
+        index=61, name="reverb_decay", type_="num", default_value=0.5, interval=(0.0, 0.6)
+    ),  # avoid too long decay
     SynthParameter(index=62, name="reverb_pre_delay", type_="num"),
     SynthParameter(index=63, name="reverb_high_cut", type_="num"),
     SynthParameter(index=64, name="reverb_low_cut", type_="num", default_value=1.0),
@@ -83,8 +91,8 @@ SYNTH_PARAMETERS = (
     SynthParameter(index=66, name="master_high_pass", type_="num"),
     SynthParameter(index=67, name="master_detune", type_="num"),
     SynthParameter(index=68, name="vintage_noise", type_="num"),
-    # SynthParameter(index=69, name="panic", type_="bin"),
-    # SynthParameter(index=70, name="midi_learn", type_="bin"),
+    # SynthParameter(index=69, name="panic", type_="bin"), # not a synthesis parameters
+    # SynthParameter(index=70, name="midi_learn", type_="bin"), # not a synthesis parameters
     SynthParameter(index=71, name="envelope_destination", type_="cat", cardinality=8),
     SynthParameter(index=72, name="envelope_speed", type_="num", cardinality=6),
     SynthParameter(index=73, name="envelope_amount", type_="num"),

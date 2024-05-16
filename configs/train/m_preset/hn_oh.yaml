@@ -1,6 +1,6 @@
 cfg:
   _target_: models.preset.hn_oh
-  hidden_features: 1024
+  hidden_features: 768
   num_blocks: 6
   block_norm: BatchNorm1d
   block_act_fn: ReLU

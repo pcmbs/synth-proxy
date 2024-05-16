@@ -1,13 +1,13 @@
 from utils.synth.synth_parameter import SynthParameter
 
-# TODO: add motivation for category weights, modified interval, and excluded params (not final yet)
-
 # Modulation sources for LFOs, OSCs, Filters, Amplifier, MOD-VCO, MOD-Filter, MOD-Feedback
 # Included: None, Env1, Env2, LFO1, LFO2, Quantise, Lag, Multiply
+# The one depending on user control and the ones not impacting the output sound are excluded (also to simplify a bit the task)
 _EXCLUDED_CAT_FOR_MOD = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 18, 19, 22)
 
 # Modulation sources for MODs (rectify, invert, quantise, lag, multiply, and add)
 # Included: Env1, Env2, LFO1, LFO2
+# The one depending on user control and the ones not impacting the output sound are excluded (also to simplify a bit the task)
 _EXCLUDED_CAT_FOR_MOD_GROUP = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 18, 19, 20, 21, 22, 23)
 
 SYNTH_PARAMETERS = [

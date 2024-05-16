@@ -23,7 +23,7 @@ from models.preset.mlp_builder import MlpBuilder, MLPBlock, HighwayBlock, ResNet
 from models.preset.tfm_builder import TfmBuilder
 from utils.synth import PresetHelper
 
-# TODO: Add support to load weights from a checkpoint (will need to extract them from lightning ckpt first)
+# TODO: Add support to load weights from a checkpoint
 
 
 ##############################################################################################################
@@ -380,9 +380,9 @@ if __name__ == "__main__":
     load_dotenv()
     PROJECT_ROOT = Path(os.environ["PROJECT_ROOT"])
 
-    SYNTH = "diva"
+    SYNTH = "talnm"
 
-    MODEL = "mlp_oh"
+    MODEL = "hn_oh"
     AUDIO_FE = "mn04"
 
     CONF = {

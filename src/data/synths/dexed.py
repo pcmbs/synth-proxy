@@ -2,8 +2,6 @@ from utils.synth import SynthParameter
 
 # Only works on windows for now...
 
-# TODO: add motivation for category weights, modified interval, and excluded params
-
 SYNTH_NAME = "dexed"
 
 _GENERAL_PARAMETERS = (
@@ -21,7 +19,7 @@ _GENERAL_PARAMETERS = (
     SynthParameter(index=11, name="lfo_key_sync", type_="bin", default_value=1.0),
     SynthParameter(
         index=12, name="lfo_wave", type_="cat", cardinality=6, excluded_cat_idx=(5,)
-    ),  # exclude S&H
+    ),  # exclude S&H for reproducibility
     SynthParameter(
         index=13,
         name="middle_c",

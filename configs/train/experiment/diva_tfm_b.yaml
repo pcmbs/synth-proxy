@@ -43,7 +43,7 @@ trainer:
   max_epochs: 10
   
   # set True to to ensure deterministic results
-  # makes training slower but gives more reproducibility than just setting seeds
+  # improve reproducibility over setting seeds alone (can slightly slow training)
   deterministic: True
 
 # ckpt_path: ${paths.ckpt_dir}/restart/diva_tfm_b_re20.ckpt

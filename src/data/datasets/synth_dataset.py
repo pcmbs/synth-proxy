@@ -11,10 +11,7 @@ load_dotenv()  # take environment variables from .env
 
 class SynthDataset(Dataset):
     """
-    Map-style dataset for generating random presets for a given syntheiszer using DawDreamer for rendering.
-
-    Attributes
-
+    Map-style dataset for generating synthetic presets for a given syntheiszer using DawDreamer for rendering.
     """
 
     MAX_SEED_VALUE = 2**64 - 1  # 18_446_744_073_709_551_615
@@ -34,7 +31,7 @@ class SynthDataset(Dataset):
         path_to_plugin: Optional[str | Path] = None,
     ):
         """
-        Initialize a map-style dataset for generating random presets for a given syntheiszer using DawDreamer for rendering.
+        Initialize a map-style dataset for generating synthetic presets for a given syntheiszer using DawDreamer for rendering.
 
         Args
             preset_helper (PresetHelper):
@@ -50,7 +47,7 @@ class SynthDataset(Dataset):
                 index of the last sampled data is not useful in epoch-based training based on a RandomSampler
                 (Default: 100_000)
             seed_offset (int):
-                Positive offset (multiplied by 10B) to be added to the RNG seed which
+                Positive offset (multiplied by 100B) to be added to the RNG seed which
                 corresponds to the first data sample's index, since the global training step (+ this offset)
                 is used to set the RNG seed for each data point. This allows to generate 184_467_440 unique
                 sequences of 100B presets each. (Default: 0)

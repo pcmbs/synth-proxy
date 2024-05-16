@@ -9,7 +9,7 @@ task_name: dexed_hn_oh_b
 
 ########## hyperparameters 
 
-m_preset:
+m_preset: # 6_167_232 parameters
   cfg: 
     num_blocks: 6
     hidden_features: 768
@@ -40,7 +40,7 @@ trainer:
   max_epochs: 30
   
   # set True to to ensure deterministic results
-  # makes training slower but gives more reproducibility than just setting seeds
+  # improve reproducibility over setting seeds alone (can slightly slow training)
   deterministic: True
 
 # ckpt_path: ${paths.ckpt_dir}/restart/dexed_hn_oh_b_re20.ckpt
