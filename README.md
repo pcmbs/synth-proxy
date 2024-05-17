@@ -1,5 +1,8 @@
-# Neural Proxies for Sound Synthesizers: Learning Perceptually Informed Presets Representations
+<h1 align="center">
+  Neural Proxies for Sound Synthesizers: <br>
+  Learning Perceptually Informed Presets Representations
 
+</h1>
 
 ## Introduction
 Code source repository for my master's thesis on Neural Proxies for Sound Synthesizers.
