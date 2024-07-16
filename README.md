@@ -143,16 +143,13 @@ $ python src/export/dataset_pkl.py synth=talnm audio_fe=mn04 dataset_size=65_536
 Remark: The datasets used for hyperparameter optimization, training, and evaluation (synthetic and hand-crafted) can be downloaded from the [link](https://e.pcloud.link/publink/show?code=kZUw9MZ60OxeaBeBPyr87PihHKfjSHC2qRk). 
 
 ## Hyperparameter Optimization
-Uses [Optuna](https://optuna.org/), [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/), and [wandb](https://wandb.ai/).
+Details regarding the HPO can be found in [./configs/hpo/hpo.yaml](./configs/hpo/hpo.yaml) and [./src/hpo/run.py](./src/hpo/run.py).
 
-the L1 distance is used as the loss function, while the $L^1$ distance and mean reciprocal rank is used for validation. Details regarding the HPO can be found in [./configs/hpo/hpo.yaml](./configs/hpo/hpo.yaml) and [./src/hpo/run.py](./src/hpo/run.py).
-
+Remark: the $L^1$ distance is used as the loss function, while the $L^1$ distance and mean reciprocal rank is used for validation. 
 ## Training
-Uses [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) and [wandb](https://wandb.ai/).
+Details regarding training can be found in the [training script](./src/train.py) and [training configuration folder](./configs/train/).
 
 Remarks:
-- The training script is available at [./src/train.py](./src/train.py).
-- The training configuration is defined in [./configs/train/train.yaml](./configs/train/train.yaml).
 - New experiments can be added to the existing ones in [./configs/train/experiments](./configs/train/experiments).
 - Custom learning rate schedulers can be implemented in [./src/utils/lr_schedulers.py](./src/utils/lr_schedulers.py).
 - training artifacts can be found in [./logs/train](./logs/train).
