@@ -62,7 +62,7 @@ TALNM_PATH=/path/to/talnoisemaker/vst3
 Remarks: You do not need to install and link the synthesizers if you are not generating new datasets but are using the provided ones instead.
 
 ### Main dependencies
-- [Pytorch](https://pytorch.org) and [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) for defining the model and training.
+- [Pytorch](https://pytorch.org) and [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) for model definition and training.
 - [DawDreamer](https://github.com/DBraun/DawDreamer) for rendering audio from VST plugins.
 - [Wandb](https://wandb.ai) for logging.
 - [Optuna](https://optuna.org) for hyperparameter optimization.
