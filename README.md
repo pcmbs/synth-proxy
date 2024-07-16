@@ -87,7 +87,7 @@ To add a new synthesizer, follow these steps:
 
 3) Add the path to the synthesizer as environment variable in the `.env` file, e.g., `NEW_SYNTH_PATH=/path/to/new/synth/vst3`.
 
-4) Create a python file under [/src/data/synths/](./src/data/synths/) containing the internal representation of the synthesizer, which is implemented as a tuple of SynthParameter instances. You can use [./src/data/synths/another_synth.py](./src/data/synths/another_synth.py) as a template together with the helper script [./src/utils/synth/get_synth_parameters.py](./src/utils/synth/get_synth_parameters.py) to generate the representation of each synthesizer parameter (don't forget to manually double-check).
+4) Create a python file under [./src/data/synths/](./src/data/synths/) containing the internal representation of the synthesizer, which is implemented as a tuple of SynthParameter instances. You can use [./src/data/synths/another_synth.py](./src/data/synths/another_synth.py) as a template together with the helper script [./src/utils/synth/get_synth_parameters.py](./src/utils/synth/get_synth_parameters.py) to generate the representation of each synthesizer parameter (don't forget to manually double-check).
 
 5) Add additional arguments for each SynthParameter instance if desired (see [./src/utils/synth/synth_parameter.py](./src/utils/synth/synth_parameter.py) and existing synthesizers for examples). These are used to constraint the sampling process used to generated synthetic presets.
 
@@ -139,6 +139,8 @@ Example:
 ```bash
 $ python src/export/dataset_pkl.py synth=talnm audio_fe=mn04 dataset_size=65_536 seed_offset=10 batch_size=512 num_workers=8 tag=test
 ```
+
+Remark: The datasets used for hyperparameter optimization, training, and evaluation (synthetic and hand-crafted) can be downloaded from the [link](https://e.pcloud.link/publink/show?code=kZUw9MZ60OxeaBeBPyr87PihHKfjSHC2qRk). 
 
 ## Hyperparameter Optimization
 Uses [Optuna](https://optuna.org/), [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/), and [wandb](https://wandb.ai/).
