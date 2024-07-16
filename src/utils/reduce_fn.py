@@ -74,6 +74,13 @@ def max_time_pool(x: torch.Tensor) -> torch.Tensor:
     return x.amax(-1)
 
 
+def identity(x: torch.Tensor) -> torch.Tensor:
+    """
+    Do not apply any reduction on the input tensor.
+    """
+    return x
+
+
 if __name__ == "__main__":
     x = torch.rand((10, 128, 500))
 

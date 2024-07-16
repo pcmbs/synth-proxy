@@ -23,8 +23,8 @@ https://github.com/kkoutini/passt_hear21/tree/main
 import os
 from dotenv import load_dotenv
 import torch
-from torch import nn
 
+from models.audio.abstract_audio_model import AudioModel
 from models.audio.passt import base, base2level, base2levelmel
 from utils import reduce_fn
 
@@ -54,7 +54,14 @@ torch.hub.set_dir(os.environ["PROJECT_ROOT"])  # path to download/load checkpoin
 # base2lvlmel: same as base2lvl but also concatenates the flattened mel spectrogram
 
 
-class PasstWrapper(nn.Module):
+class PasstWrapper(AudioModel):
+    """
+    Wrapper class around PaSST models for integration into the current pipeline.
+
+    Stripped down version of the PaSST repo available at
+    https://github.com/kkoutini/passt_hear21/tree/main
+    """
+
     def __init__(
         self,
         features: str,
@@ -95,25 +102,27 @@ class PasstWrapper(nn.Module):
         self.features = features
 
         self.reduce_fn = getattr(reduce_fn, reduction)
-
-    @property
-    def segment(self) -> None:
-        return None
+        if reduction == "identity":
+            raise NotImplementedError("Non-reduced outputs are not supported yet.")
 
     @property
     def sample_rate(self) -> int:
+        """Return the required input audio signal's sample rate."""
         return 32_000
 
     @property
-    def in_channels(self) -> int:
-        return 1
-
-    @property
     def name(self) -> str:
+        """Return the name of the model."""
         return f"{self.arch}_{self.features}_{self.mode}"
 
     @property
+    def in_channels(self) -> int:
+        """Return the required number of input audio channels."""
+        return 1
+
+    @property
     def num_parameters(self) -> int:
+        """Return the number of parameters of the model."""
         return sum(p.numel() for p in self.parameters())
 
     @property
@@ -128,6 +137,7 @@ class PasstWrapper(nn.Module):
 
     @property
     def includes_mel(self) -> bool:
+        """Return whether the model concatenate the reduced mel spectrogram to its output."""
         return True
 
     def forward(self, audio: torch.Tensor) -> torch.Tensor:
@@ -135,12 +145,18 @@ class PasstWrapper(nn.Module):
         Forward pass.
 
         Args:
-            audio (torch.Tensor): mono input sounds @32khz of shape (n_sounds, n_channels=1, n_samples) in the range [-1, 1]
+            audio (torch.Tensor): mono input sounds @32khz of shape (n_sounds, n_channels=1, n_samples)
+            in the range [-1, 1].
 
         Returns:
-            torch.Tensor: audio embeddings of shape (n_sounds, embed_size=768, n_timestamps) where n_timestamps
-            is computed based on a window size of 160ms with a hop size of 50ms (5120 sand 1600 samples @32kHz, respectively)
-            and depends on the input length.
+            torch.Tensor: audio embeddings of shape:
+            - (n_sounds, embed_size) if `{max,avg}_time_pool` is used as reduction function,
+            where embed_size=self.out_features
+            - (n_sounds, n_timestamps) if `{max,avg}_channel_pool` is used as reduction function,
+            where n_timestamps is computed based on a window size of 160ms with a hop size of 50ms
+            (5120 and 1600 samples @32kHz, respectively) and depends on the input length.
+            - (n_sounds, embed_size * n_timestamps) if `flatten` is used as reduction function.
+            - (n_sounds, embed_size, n_timestamps) if `identity` is used as reduction function.
         """
         # passt requires mono input audio of shape (n_sounds, n_samples)
         audio = audio.squeeze(-2)

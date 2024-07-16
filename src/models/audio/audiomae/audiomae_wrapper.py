@@ -22,8 +22,8 @@ import numpy as np
 import torch
 import torchaudio
 from dotenv import load_dotenv
-from torch import nn
 
+from models.audio.abstract_audio_model import AudioModel
 from models.audio.audiomae.nets.models_mae_encoder_only import mae_vit_base_patch16
 from utils import reduce_fn
 
@@ -63,13 +63,28 @@ def set_posix_windows():
 # (n_sounds, num_patches=512, embed_dim=768)
 # contextual_embs:
 # the encoder output is the mean over the "encoder_depth - contextual_depth" last transformer layers' output
-# if contextual_depth=-1 then the output is the last transformer layer followed by a layer norm
+# if contextual_depth=-1 then the output is the last transformer layer followed by a layer norm.
 # encoder output shape (after final transpose):
 # (n_sounds, embed_size=768, num_patches=512)
 
 
-class AudioMAEWrapper(nn.Module):
+class AudioMAEWrapper(AudioModel):
+    """
+    Wrapper class around AudioMAE pretrained models.
+
+    Github Repo: https://github.com/facebookresearch/AudioMAE/tree/main
+    """
+
     def __init__(self, ckpt_name: str, contextual_depth: int, reduction: str) -> None:
+        """
+        Args:
+            ckpt_name (str): name of the checkpoint to load. Must be one of ['as_2M_pt+ft', 'as_2M_pt']
+            contextual_depth (int): the model output is the mean over the "12 - (contextual_depth)"
+            last transformer layers' output. If contextual_depth=-1 then the output is the
+            last transformer layer followed by a layer norm.
+            reduction (str): the method used to reduce the model outputs to a single vector per
+            audio input. Available reduction methods are available in utils/reduce_fn.py
+        """
         super().__init__()
         if ckpt_name == "as-2M_pt+ft":
             ckpt_id = "18EsFOyZYvBYHkJ7_n7JFFWbj6crz01gq"
@@ -115,13 +130,12 @@ class AudioMAEWrapper(nn.Module):
         self.norm_std = 4.5689974
 
         self.reduce_fn = getattr(reduce_fn, reduction)
-
-    @property
-    def segment(self) -> None:
-        return 10
+        if reduction == "identity":
+            raise NotImplementedError("Non-reduced outputs are not supported yet.")
 
     @property
     def sample_rate(self) -> int:
+        """Return the required input audio signal's sample rate."""
         # should technically be 16_000 since it is what the model was trained on
         # but we use 44_100 to include high frequency content
         # small loss of performance on some sound attributes (probably due to the difference in feautures)
@@ -129,16 +143,14 @@ class AudioMAEWrapper(nn.Module):
         return 44_100
 
     @property
-    def in_channels(self) -> int:
-        return 1
-
-    @property
     def name(self) -> str:
+        """Return the name of the model."""
         return f"audiomae_{self.ckpt_name}_ctx{self.cxt_depth}"
 
     @property
-    def num_parameters(self) -> int:
-        return sum(p.numel() for p in self.model.parameters())
+    def in_channels(self) -> int:
+        """Return the required number of input audio channels."""
+        return 1
 
     @property
     def out_features(self) -> int:
@@ -147,6 +159,7 @@ class AudioMAEWrapper(nn.Module):
 
     @property
     def includes_mel(self) -> bool:
+        """Return whether the model concatenate the reduced mel spectrogram to its output."""
         return False
 
     def forward(self, audio: torch.Tensor) -> torch.Tensor:
@@ -159,7 +172,12 @@ class AudioMAEWrapper(nn.Module):
             longer ones will be padded.
 
         Returns:
-            torch.Tensor: audio embeddings of shape (n_sounds, embed_size=768, num_patches=512)
+            torch.Tensor: audio embeddings of shape:
+            - (n_sounds, embed_size) if `{max,avg}_time_pool` is used as reduction function,
+            where embed_size=self.out_features
+            - (n_sounds, n_timestamps) if `{max,avg}_channel_pool` is used as reduction function.
+            - (n_sounds, embed_size * n_timestamps) if `flatten` is used as reduction function.
+            - (n_sounds, embed_size, n_timestamps) if `identity` is used as reduction function.
         """
         # kaldi fbanks can only be computed for a single audio sample at a time
         fbanks_batch = torch.stack([self._wav2fbank(sample) for sample in audio], dim=0)

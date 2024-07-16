@@ -2,7 +2,8 @@ import pytest
 import torch
 from torch import nn
 
-from models.preset.mlp_builder import mlp_raw, mlp_oh, MLPBlock
+from models.preset.mlp_builder import MLPBlock
+from models.preset.model_zoo import mlp_raw, mlp_oh
 from utils.synth import PresetHelper
 
 

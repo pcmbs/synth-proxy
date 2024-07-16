@@ -46,6 +46,9 @@ def _log_results_to_console(results: Dict) -> None:
             pass
 
 
+# TODO: return raw results rather than mean and std?
+
+
 @hydra.main(version_base="1.3", config_path="../configs/eval", config_name="eval.yaml")
 def evaluate(cfg: DictConfig) -> None:
     """

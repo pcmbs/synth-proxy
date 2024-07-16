@@ -1,3 +1,10 @@
+"""
+Internal representation for the TAL-NoiseMaker* synthesizer, 
+implemented as a tuple of SynthParameter instances.
+
+*https://tal-software.com/products/tal-noisemaker
+"""
+
 from utils.synth import SynthParameter
 
 SYNTH_NAME = "talnm"

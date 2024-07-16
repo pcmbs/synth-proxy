@@ -16,6 +16,7 @@ dependencies:
     - omegaconf==2.3.0
     - optuna==3.5.0
     - pandas==2.2.2
+    - pedalboard==0.9.10
     - timm==0.9.10 # 0.4.12 might be required for passt 
     - torchopenl3==1.0.1
     - umap-learn==0.5.6

@@ -39,10 +39,10 @@ _STATS_NAMES = tuple(_STATS_FORMAT.values())
 
 # FORMAT AND PLOT THINGS
 _MODEL_NAME_FORMAT = {
+    "mlp_oh": "MLP-OH",
+    "hn_oh": "HN-OH",
     "hn_pt": "HN-PT",
     "hn_ptgru": "HN-PTGRU",
-    "hn_oh": "HN-OH",
-    "mlp_oh": "MLP-OH",
     "tfm": "TFM",
 }
 _MODEL_NAMES = tuple(_MODEL_NAME_FORMAT.values())
@@ -55,7 +55,9 @@ _SYNTH_NAME_FORMAT = {
 _SYNTH_NAMES = tuple(_SYNTH_NAME_FORMAT.values())
 
 _COLORS = plt.cm.Paired.colors  # Get colors from colormap
-_COLOR_MAP = {"Dexed": _COLORS[6], "Diva": _COLORS[2], "TAL-NM.": _COLORS[0]}
+# _COLOR_MAP = {"Dexed": _COLORS[6], "Diva": _COLORS[2], "TAL-NM.": _COLORS[0]} # paper color theme
+_COLOR_MAP = {"Dexed": _COLORS[8], "Diva": _COLORS[4], "TAL-NM.": _COLORS[0]}  # presentation color theme
+_FONT_SIZE = 20
 
 # Rounding depending on the displayed value
 _NUM_DECIMAL = {"mrr": 3, "loss": 4, "percentage": 1}
@@ -191,13 +193,15 @@ def synthetic_presets_results_plot(
     index = np.arange(len(_MODEL_NAMES))
 
     # Initialize the plot
-    _, ax = plt.subplots(figsize=(12, 5), layout="constrained")
+    # _, ax = plt.subplots(figsize=(12, 5), layout="constrained")
+    _, ax = plt.subplots(figsize=(6, 5), layout="constrained")
 
     # Iteratively plot each bar
     max_val = -np.inf  # initialize max value for ylim
     for i, m in enumerate(_MODEL_NAMES):
         for j, s in enumerate(_SYNTH_NAMES):
             val = df.loc[m, (s, metric, _STATS_FORMAT["mean"])]
+            std_val = df.loc[m, (s, metric, _STATS_FORMAT["std"])]
             rect = ax.bar(
                 i + j * bar_width,
                 val,
@@ -207,18 +211,34 @@ def synthetic_presets_results_plot(
                 edgecolor="black",
                 linewidth=0.5,
             )
-            # Add value labels
-            ax.bar_label(rect, padding=2)
+            # # Add mean labels
+            # ax.bar_label(rect, padding=2)
+            # Add mean and std labels
+            # ax.bar_label(rect, labels=[f"{val}"], padding=12)
+            # ax.bar_label(rect, labels=[r"$\pm$" + f"{std_val}"], padding=2, fontsize=8)
+
+            # Add error bars for standard deviation
+            ax.errorbar(
+                i + j * bar_width,
+                val,
+                yerr=std_val,
+                fmt="none",
+                ecolor="black",
+                elinewidth=0.5,
+                capsize=6,
+                capthick=0.5,
+            )
             # Update max value if needed
             max_val = max(val, max_val)
 
     # Add labels and title
-    ax.set_xlabel("Model", labelpad=10, fontsize=12)
-    ax.set_ylabel(metric, fontsize=12)
+    # ax.set_xlabel("Model", labelpad=10, fontsize=_FONT_SIZE)
+    ax.set_ylabel(r"L$^1$ Error" if metric == "L1 Error" else metric, fontsize=_FONT_SIZE)
     ax.set_ylim(0, max_val + 0.1 * max_val)
     ax.set_xticks(index + total_width / 3)
     ax.set_xticklabels(_MODEL_NAMES)
-    ax.legend(loc="lower right", ncols=3, bbox_to_anchor=(1.0, -0.15))
+    ax.tick_params(axis="both", which="both", labelsize=_FONT_SIZE - 8)
+    ax.legend(loc="lower right", ncols=3, bbox_to_anchor=(1.0, -0.20), fontsize=_FONT_SIZE - 8)
 
     if not save_fig:  # do not add plot title for the paper
         ax.set_title("Overall Results on Random Presets")
@@ -257,11 +277,15 @@ def handcrafted_presets_results_plot(
     metric = "MRR" if metric == "mrr" else "L1 Error"
     assert metric in _METRIC_NAMES, "metric must be either 'mrr' or 'loss'"
 
-    df = df.loc[:, (_SYNTH_NAMES, metric, _VAL_NAMES, (_STATS_FORMAT["mean"], ""))]
+    # _SYNTH_NAMES = ("Dexed", "Diva")
+
+    # df = df.loc[:, (_SYNTH_NAMES, metric, _VAL_NAMES, (_STATS_FORMAT["mean"], ""))]
+    df = df.loc[:, (_SYNTH_NAMES, metric, _VAL_NAMES)]
     df.columns = df.columns.droplevel(1)
 
     # Set the width of each bar
     bar_width = 0.153
+    # bar_width = 0.18
 
     # Calculate the width for each group of bars
     total_width = bar_width * len(_SYNTH_NAMES) * 2  # * 2 since we have 2 bars per synth
@@ -277,6 +301,7 @@ def handcrafted_presets_results_plot(
             for k, v in enumerate([_VAL_FORMAT["rnd"], _VAL_FORMAT["hc"]]):
                 # plot results on `v` presets for `m` model and `s` synth
                 val = df.loc[m, (s, v, _STATS_FORMAT["mean"])]
+                std_val = df.loc[m, (s, v, _STATS_FORMAT["std"])]
                 rect = ax.bar(
                     i + (j * 2 + k) * bar_width,
                     val,
@@ -287,7 +312,19 @@ def handcrafted_presets_results_plot(
                     linewidth=0.5,
                 )
                 # add value label
-                ax.bar_label(rect, padding=2)
+                # ax.bar_label(rect, padding=2)
+
+                # Add error bars for standard deviation
+                ax.errorbar(
+                    i + (j * 2 + k) * bar_width,
+                    val,
+                    yerr=std_val,
+                    fmt="none",
+                    ecolor="black",
+                    elinewidth=0.5,
+                    capsize=4,
+                    capthick=0.5,
+                )
 
                 # Update max value if needed
                 max_val = max(val, max_val)
@@ -295,7 +332,7 @@ def handcrafted_presets_results_plot(
                 # add percentage decrease label aligned to hand-crafted bar...
             if plot_percentage:
                 x_pos = i + (j * 2 + 1) * bar_width
-                y_pos = val + (0.18 if metric == "MRR" else -0.025)
+                y_pos = val + (0.10 if metric == "MRR" else -0.025)
                 label = (
                     ("+" if metric == "L1 Error" else "")
                     + str(df.loc[m, (s, _VAL_FORMAT["percentage"], "")])
@@ -309,6 +346,7 @@ def handcrafted_presets_results_plot(
                     va="center",
                     rotation=90,
                     fontweight="semibold",
+                    fontsize=_FONT_SIZE - 8,
                     bbox={
                         "facecolor": "white" if metric == "MRR" else _COLOR_MAP[s],
                         "edgecolor": "black",
@@ -318,11 +356,12 @@ def handcrafted_presets_results_plot(
                 )
 
     # Plots settings
-    ax.set_xlabel("Model", labelpad=10, fontsize=12)
-    ax.set_ylabel(metric, fontsize=12)
+    ax.set_xlabel("Model", labelpad=10, fontsize=_FONT_SIZE)
+    ax.set_ylabel(r"L$^1$ Error" if metric == "L1 Error" else metric, fontsize=_FONT_SIZE)
     ax.set_ylim(0, max_val + 0.1 * max_val)
     ax.set_xticks(index + total_width / 2.4)
     ax.set_xticklabels(_MODEL_NAMES)
+    ax.tick_params(axis="both", which="both", labelsize=_FONT_SIZE - 4)
 
     # Add legend
     legend_handles = [
@@ -333,7 +372,14 @@ def handcrafted_presets_results_plot(
         plt.Rectangle((0, 0), 1, 1, facecolor=_COLOR_MAP["TAL-NM."], edgecolor="black", linewidth=0.5),
     ]
     legend_labels = ["Dexed", "Synthetic", "Diva", "Hand-Crafted", "TAL-NM."]
-    ax.legend(legend_handles, legend_labels, loc="lower right", ncols=3, bbox_to_anchor=(1, -0.21))
+    ax.legend(
+        legend_handles,
+        legend_labels,
+        loc="lower right",
+        ncols=3,
+        bbox_to_anchor=(1, -0.25),
+        fontsize=_FONT_SIZE - 8,
+    )
 
     if not save_fig:  # do not add title for the paper
         ax.set_title("Generalization Results: Hand-Crafted vs. Random Presets")

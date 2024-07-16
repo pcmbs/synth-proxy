@@ -42,6 +42,8 @@ EXPORT_RESULTS = True
 PLOT_RESULTS = False
 # whether to print the results in latex format
 PRINT_LATEX = False
+# whether to plot the percentage for the hand-crafted presets results
+PLOT_PERCENTAGES = False
 
 ### Paths
 # Suffix appended to the results folder if the logs/eval directory contains several folder
@@ -92,7 +94,11 @@ if __name__ == "__main__":
             hc_results_df.to_csv(EXPORT_DIR / "handcrafted_presets_results.csv")
         for metric in METRICS:
             handcrafted_presets_results_plot(
-                results_df, metric=metric, save_fig=EXPORT_RESULTS, export_path=EXPORT_DIR
+                results_df,
+                metric=metric,
+                save_fig=EXPORT_RESULTS,
+                export_path=EXPORT_DIR,
+                plot_percentage=PLOT_PERCENTAGES,
             )
         print("\nResults on hand-crafted presets:\n")
         print(hc_results_df)

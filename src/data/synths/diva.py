@@ -1,3 +1,10 @@
+"""
+Internal representation for the Diva* synthesizer, 
+implemented as a list of SynthParameter instances.
+
+*https://u-he.com/products/diva/
+"""
+
 from utils.synth.synth_parameter import SynthParameter
 
 # Modulation sources for LFOs, OSCs, Filters, Amplifier, MOD-VCO, MOD-Filter, MOD-Feedback

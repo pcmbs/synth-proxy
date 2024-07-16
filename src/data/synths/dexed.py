@@ -1,3 +1,10 @@
+"""
+Internal representation for the Dexed* synthesizer, 
+implemented as a tuple of SynthParameter instances.
+
+*https://github.com/asb2m10/dexed
+"""
+
 from utils.synth import SynthParameter
 
 # Only works on windows for now...

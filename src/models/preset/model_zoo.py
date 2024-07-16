@@ -382,7 +382,7 @@ if __name__ == "__main__":
 
     SYNTH = "talnm"
 
-    MODEL = "hn_oh"
+    MODEL = "mlp_oh"
     AUDIO_FE = "mn04"
 
     CONF = {
@@ -393,14 +393,15 @@ if __name__ == "__main__":
         "tfm": {"num_blocks": 6, "hidden_features": 256, "num_heads": 8, "mlp_factor": 4.0},
     }
 
-    synth_cfg = OmegaConf.load(PROJECT_ROOT / "configs" / "export" / "synth" / f"{SYNTH}.yaml")[
+    excluded_params = OmegaConf.load(PROJECT_ROOT / "configs" / "export" / "synth" / f"{SYNTH}.yaml")[
         "parameters_to_exclude_str"
     ]
 
-    p_helper = PresetHelper(SYNTH, synth_cfg)
+    p_helper = PresetHelper(SYNTH, excluded_params)
 
+    audio_model = getattr(audio_models, AUDIO_FE)()
     model = getattr(sys.modules[__name__], MODEL)(
-        out_features=getattr(audio_models, AUDIO_FE)().out_features, preset_helper=p_helper, **CONF[MODEL]
+        out_features=audio_model.out_features, preset_helper=p_helper, **CONF[MODEL]
     )
     print(f"\nNumber of model parameters: {model.num_parameters}")
     print(f"\nNumber of used synthesizer parameters: {p_helper.num_used_parameters}\n")

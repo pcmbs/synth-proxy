@@ -3,22 +3,38 @@ Mel only model
 """
 
 import torch
-from torch import nn
 import torchaudio.functional as Fa
 import torchaudio.transforms as T
 
+from models.audio.abstract_audio_model import AudioModel
 from utils import reduce_fn
 
 
-class MelModel(nn.Module):
+class MelModel(AudioModel):
+    """
+    Log Mel Spectrogram or MFCC.
+    """
+
     def __init__(
         self,
         n_mels: int,
         n_mfcc: int,
         min_db: float,
         reduction: str,
+        sample_rate: int = 44_100,
     ) -> None:
+        """
+        Args:
+            n_mels (int): Number of mel filters.
+            n_mfcc (int): Number of mfcc filters to use. Pass 0 to generate mel spectrogram.
+            min_db (int)): Minimum db value to use, i.e., magnitude falling below `min_db`
+            will be clamped to 10^(min_db/10),
+            reduction (str): the method used to reduce the model outputs to a single vector per
+            audio input. Available reduction methods are available in utils/reduce_fn.py
+            sample_rate (int): Sample rate of the audio signal.
+        """
         super().__init__()
+        self._sample_rate = sample_rate
         self.n_mels = n_mels
         self.n_mfcc = n_mfcc
         self.min_db = min_db
@@ -47,6 +63,8 @@ class MelModel(nn.Module):
             self.n_mfcc = None
 
         self.reduce_fn = getattr(reduce_fn, reduction)
+        if reduction == "identity":
+            raise NotImplementedError("Non-reduced outputs are not supported yet.")
 
         # normalization statistics (from AudioSet)
         self.norm_mean = -4.2677393
@@ -61,32 +79,33 @@ class MelModel(nn.Module):
         # self.norm_std = 18.549829483032227
 
     @property
-    def segment(self) -> None:
-        return None
-
-    @property
     def sample_rate(self) -> int:
-        return 44_100
-
-    @property
-    def in_channels(self) -> int:
-        return 1
+        """Return the required input audio signal's sample rate."""
+        return self._sample_rate
 
     @property
     def name(self) -> str:
+        """Return the name of the model."""
         return f"mel{self.n_mels}_{self.n_mfcc}_{self.min_db}"
 
     @property
+    def in_channels(self) -> int:
+        """Return the required number of input audio channels."""
+        return 1
+
+    @property
     def num_parameters(self) -> int:
+        """Return the number of parameters of the model."""
         return sum(p.numel() for p in self.parameters())
 
     @property
     def out_features(self) -> int:
-        """Return the number of output features of the model (assuming avg or max time pooling)."""
-        return self.n_mels
+        """Return the number of output features of the model (assuming `{max, avg}_time_pool`)."""
+        return self.n_mfcc or self.n_mels
 
     @property
     def includes_mel(self) -> bool:
+        """Return whether the model concatenate the reduced mel spectrogram to its output."""
         return True
 
     def forward(self, audio: torch.Tensor) -> torch.Tensor:
@@ -94,10 +113,16 @@ class MelModel(nn.Module):
         Forward pass.
 
         Args:
-            audio (torch.Tensor): mono input sounds @44,1khz of shape (n_sounds, n_channels=1, n_samples) in the range [-1, 1].
+            audio (torch.Tensor): mono input sounds @self.sample_rate of shape
+            (n_sounds, n_channels=1, n_samples) in the range [-1, 1].
 
         Returns:
-            torch.Tensor: audio embeddings of shape (n_sounds, n_mels)
+            torch.Tensor: audio embeddings of shape:
+            - (n_sounds, embed_size) if `{max,avg}_time_pool` is used as reduction function,
+            where embed_size=self.out_features.
+            - (n_sounds, n_timestamps) if `{max,avg}_channel_pool` is used as reduction function.
+            - (n_sounds, embed_size * n_timestamps) if `flatten` is used as reduction function.
+            - (n_sounds, embed_size, n_timestamps) if `identity` is used as reduction function.
         """
         if self.n_mfcc is not None:
             return self.reduce_fn(self._compute_mfcc(audio).squeeze_(1))

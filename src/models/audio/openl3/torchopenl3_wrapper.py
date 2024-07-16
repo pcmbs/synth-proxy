@@ -11,15 +11,22 @@ from functools import partial
 import torch
 import torchopenl3
 from dotenv import load_dotenv
-from torch import nn
 
+from models.audio.abstract_audio_model import AudioModel
 from utils import reduce_fn
 
 load_dotenv()  # take environment variables from .env for checkpoints folder
 torch.hub.set_dir(os.environ["PROJECT_ROOT"])  # path to download/load checkpoints
 
 
-class TorchOpenL3Wrapper(nn.Module):
+class TorchOpenL3Wrapper(AudioModel):
+    """
+    Wrapper class around a torchopenl3 model for integration into the current pipeline.
+
+    [1] Gyanendra Das, Humair Raj Khan, Joseph Turian (2021). torchopenl3 (version 1.0.1).
+    DOI 10.5281/zenodo.5168808, https://github.com/torchopenl3/torchopenl3.
+    """
+
     def __init__(
         self,
         input_repr: str,
@@ -29,6 +36,17 @@ class TorchOpenL3Wrapper(nn.Module):
         center: bool,
         reduction: str,
     ) -> None:
+        """
+        Args:
+            input_repr (str): Input representation. Should be one of ['linear', 'mel128', 'mel256'].
+            content_type (str): Content type. Shopuld be one of ['music', 'env'].
+            embedding_size (int): Embedding size. Should be one of [512, 6144].
+            hop_size (float): Hop size in seconds.
+            center (bool): If True, pads beginning of signal so timestamps correspond
+            to center of window.
+            reduction (str): the method used to reduce the model outputs to a single vector per
+            audio input. Available reduction methods are available in utils/reduce_fn.py
+        """
         super().__init__()
         self.input_repr = input_repr
         self.content_type = content_type
@@ -52,34 +70,32 @@ class TorchOpenL3Wrapper(nn.Module):
         )
 
         self.reduce_fn = getattr(reduce_fn, reduction)
-
-    @property
-    def segment(self) -> None:
-        return None
-
-    @property
-    def in_channels(self) -> int:
-        return 1
+        if reduction == "identity":
+            raise NotImplementedError("Non-reduced outputs are not supported yet.")
 
     @property
     def sample_rate(self) -> int:
+        """Return the required input audio signal's sample rate."""
         return 48_000
 
     @property
     def name(self) -> str:
+        """Return the name of the model."""
         return f"openl3_{self.input_repr}_{self.content_type}_{self.embedding_size}"
 
     @property
-    def num_parameters(self) -> int:
-        return sum(p.numel() for p in self.net.parameters())
+    def in_channels(self) -> int:
+        """Return the required number of input audio channels."""
+        return 1
 
     @property
     def out_features(self) -> int:
-        """Return the number of output features of the model (assuming avg or max time pooling)."""
+        """Return the number of output features of the model (assuming `{avg,max}_time_pool`)."""
         return self.embedding_size
 
     @property
     def includes_mel(self) -> bool:
+        """Return whether the model concatenate the reduced mel spectrogram to its output."""
         return False
 
     def forward(self, audio: torch.Tensor) -> torch.Tensor:
@@ -90,8 +106,14 @@ class TorchOpenL3Wrapper(nn.Module):
             audio (torch.Tensor): mono input sounds @48khz of shape (n_sounds, n_samples, n_channels=1) in the range [-1, 1]
 
         Returns:
-            torch.Tensor: audio embeddings of shape (n_sounds, embed_size, n_timestamps)
-            n_timestamps depends on the input length and is computed based on a window size of 1sec with the chosen hop size.
+            torch.Tensor: audio embeddings of shape:
+            - (n_sounds, embed_size) if `{max,avg}_time_pool` is used as reduction function,
+            where embed_size=self.out_features
+            - (n_sounds, n_timestamps) if `{max,avg}_channel_pool` is used as reduction function,
+            where n_timestamps depends on the input length and is computed based on a window size
+            of 1sec with the chosen hop size.
+            - (n_sounds, embed_size * n_timestamps) if `flatten` is used as reduction function.
+            - (n_sounds, embed_size, n_timestamps) if `identity` is used as reduction function.
         """
         # audio of shape (batch, time, channels) required
         audio = audio.swapdims(-1, -2)
