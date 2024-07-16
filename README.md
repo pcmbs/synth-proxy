@@ -100,7 +100,7 @@ To add a new synthesizer, follow these steps:
 9) Once the datasets have been generated, files in the following configuration folders need to be added depending on the need (see existing synthesizers for examples): [./configs/eval/synth](./configs/eval/synth), [./configs/hpo/synth](./configs/hpo/synth), [./configs/train/train_dataset](./configs/train/train_dataset), [./configs/train/val_dataset](./configs/train/val_dataset)
 
 ## Available Preset Encoders aka. Neural Proxies
-An overview of the implemented neural proxies can be found under [./src/models/presets/model_zoo.py](./src/models/presets/model_zoo.py). The checkpoint of each pretrained model can be downloaded from this [link](https://e.pcloud.link/publink/show?code=kZkK9MZgyvowLICDzfmuQmiLltCgXiX31Ek) (Unzip and move all `.ckpt` files into the `checkpoints` folder).
+An overview of the implemented neural proxies can be found under [./src/models/preset/model_zoo.py](./src/models/preset/model_zoo.py). The checkpoint of each pretrained model can be downloaded from this [link](https://e.pcloud.link/publink/show?code=kZkK9MZgyvowLICDzfmuQmiLltCgXiX31Ek) (Unzip and move all `.ckpt` files into the `checkpoints` folder).
 
 
 
