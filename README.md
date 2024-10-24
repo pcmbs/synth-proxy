@@ -131,7 +131,7 @@ Remark: The current implementation only allow the use of 1D (i.e., reduced) audi
 
 ## Data Generation
 
-The [./src/export/synth_dataset_pkl.py](./src/export/synth_dataset_pkl.py) script for Linux (also available for [Windows](./src/export/synth_dataset_pkl_win.py)) can be used to generate synthetic presets. 
+The [./src/export/dataset_pkl.py](./src/export/dataset_pkl.py) script for Linux (also available for [Windows](./src/export/dataset_pkl_win.py)) can be used to generate synthetic presets. 
 It uses the torch dataset class [SynthDataset](./src/data/datasets/synth_dataset.py) and [DawDreamer](https://github.com/DBraun/DawDreamer) under the hood. Note that it is currently only possible to generate synthetic presets by sampling their parameters as follows:
 - Continuous numerical parameters are sampled from a uniform distribution between 0 and 1.
 - Discrete parameters, i.e., categorical, binary, or discretized numerical, are sampled from a categorical distribution.
