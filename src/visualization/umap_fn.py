@@ -1,7 +1,7 @@
 """
 Module implementing the function to compute and plots the different UMAP projections.
 
-See `umap_projections.py` for computing the UMAP projections and saving the figures. 
+See `generate_umaps.py` for computing the UMAP projections and saving the figures. 
 """
 
 # pylint: disable=E1120:no-value-for-parameter
@@ -264,14 +264,14 @@ def umap_dexed_labels(
     # iterate over the models to evaluate
     for model in models:
         print(f"Computing UMAP projections for the {MODEL_NAME_FORMAT[model]} model...")
-        if not (EVAL_DIR / "preset_embeddings" / f"{model}_embeddings.pkl").exists():
-            filename = EVAL_DIR / "preset_embeddings" / f"{model}_embeddings.pkl"
+        filename = EVAL_DIR / "preset_embeddings" / f"{model}_embeddings.pkl"
+        if not filename.exists():
             print(f"{filename} does not exists, generating and exporting embeddings...")
             generate_preset_embeddings(
                 synth="diva", model=model, batch_size=batch_size, dataset_version=dataset_version
             )
 
-        with open(EVAL_DIR / "preset_embeddings" / f"{model}_embeddings.pkl", "rb") as f:
+        with open(filename, "rb") as f:
             preset_embeddings = torch.load(f)
 
         # Extract preset embeddings and concatenate

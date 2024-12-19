@@ -1,1 +1,1 @@
-from . import instantiators, logging, evaluation, synth, lr_schedulers, reduce_fn, visualization
+from . import instantiators, logging, evaluation, synth, lr_schedulers, reduce_fn, visualization, inference

@@ -70,7 +70,8 @@ Remarks: You do not need to install and link the synthesizers if you are not gen
 
 The rest of the dependencies can be found in the [requirements.txt](./requirements.txt) file.
 
-
+## Usage examples
+Examples on how to the trained synthesizer proxies can be found in the [examples](./src/examples) folder.
 
 ## Synthesizers
 

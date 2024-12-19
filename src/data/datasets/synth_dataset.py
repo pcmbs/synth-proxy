@@ -184,10 +184,13 @@ class SynthDataset(Dataset):
 
         for param_type, sampling_dict in rnd_sampling_info["discrete"].items():
             for (values, weights), indices in sampling_dict.items():
+                # sample len(indices) integers in [0, len(weights)-1]
                 sampled_idx = torch.multinomial(
                     torch.tensor(weights), len(indices), replacement=True, generator=rng
                 )
+                # pick the corresponding (discrete) values from the values tensor (for bin and discrete numerical)
                 rnd_parameters[indices] = torch.tensor(values, dtype=torch.float32)[sampled_idx]
+                # or add the index and sampled categories for categorical parameters
                 if param_type == "cat":
                     cat_parameters_int += sampled_idx.tolist()
                     cat_parameters_idx += indices
@@ -212,8 +215,6 @@ class SynthDataset(Dataset):
 
 
 if __name__ == "__main__":
-    import os
-    from pathlib import Path
     from torch.utils.data import DataLoader
 
     BATCH_SIZE = 16

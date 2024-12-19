@@ -1,0 +1,5 @@
+num_blocks: 1
+hidden_features: 2048
+block_norm: BatchNorm1d
+block_act_fn: ReLU
+block_dropout_p: 0.0

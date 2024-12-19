@@ -1,0 +1,13 @@
+# synthesizer parameters to exclude when generating presets (support asterisk for excluding a group of parameters)
+- "cutoff"
+- "resonance"
+- "output"
+- "master_tune_adj"
+- "*_key_sync"
+- "middle_c"
+- "*_switch"
+- "*_break_point"
+- "*_scale_depth"
+- "*_key_scale"
+- "*_rate_scaling"
+- "*_key_velocity"
