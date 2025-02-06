@@ -412,7 +412,7 @@ if __name__ == "__main__":
             "delay*",
         )
 
-    if SYNTH == "diva":
+    else:  # SYNTH == "diva":
         DATASET_PATH = DATASET_FOLDER / "diva_mn04_size=65536_seed=400_hpo_val_v1"
         PARAMETERS_TO_EXCLUDE_STR = (
             "main:output",

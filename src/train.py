@@ -11,8 +11,9 @@ from typing import Any, Dict, List
 
 import hydra
 import lightning as L
+import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from lightning import Callback, LightningModule, Trainer
 from lightning.pytorch.loggers import Logger
 from lightning.pytorch.plugins.environments import SLURMEnvironment
@@ -45,7 +46,12 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
 
     log.info(f"Instantiating training Dataset: {cfg.train_dataset.path}")
     train_dataset = SynthDatasetPkl(cfg.train_dataset.path)
-    train_loader: DataLoader = DataLoader(
+    if cfg.train_dataset.dataset_size < 1:
+        log.info(f"Using {cfg.train_dataset.dataset_size * 100}% of the dataset")
+        dataset_size = int(cfg.train_dataset.dataset_size * len(train_dataset))
+        rnd_indices = torch.multinomial(torch.ones(len(train_dataset)), dataset_size, replacement=False)
+        train_dataset = Subset(train_dataset, rnd_indices)
+    train_loader = DataLoader(
         dataset=train_dataset,
         batch_size=cfg.train_dataset.loader.batch_size,
         shuffle=True,  # always shuffle the training dataset

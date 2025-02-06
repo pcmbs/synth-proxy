@@ -1,6 +1,10 @@
 # path to the pkl dataset folder used for training
 path: ${paths.root_dir}/data/datasets/diva_mn04_size=10240000_seed=500_train_v1
 
+# number of samples to use for training as a multiple of dataset_size
+# i.e., dataset_size * num_samples = number of samples to use
+dataset_size: 1
+
 loader:
   batch_size: 512
   num_workers: 8
