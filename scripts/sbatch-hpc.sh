@@ -28,10 +28,6 @@
 # job can be requeue by passing the "-r" flag
 REQUEUE_JOB=0 # don't requeue by default
 
-# Whether to run Python tests (optional)
-# tests can be run by passing the "-t" flag
-RUN_TESTS=0 # don't run tests by default
-
 # Name of the singularity container and instance to run
 # instance can be changed by passing the "-i" flag
 SINGULARITY_CONTAINER="synth-proxy_hpc.sif" 
@@ -42,9 +38,6 @@ while getopts ":rti:" opt; do
   case ${opt} in
     r )
       REQUEUE_JOB=1
-      ;;
-    t )
-      RUN_TESTS=1
       ;;
     i )
       SINGULARITY_INSTANCE="$OPTARG"
@@ -59,13 +52,6 @@ shift "$((OPTIND -1))" # remove processed arguments
 
 # instance args
 ARGS="$@"
-
-# # Set Environment variable for proxy (uncomment when proxy re-installed on cluster)
-# if [ ! "$HOSTNAME" == "frontend*" ]; then
-	# export https_proxy="http://frontend01:3128/"
-	# export http_proxy="http://frontend01:3128/"
-# fi
-
 
 # Function to gracefully handle shutdown
 graceful_shutdown() {
@@ -108,6 +94,7 @@ fi
 
 # Showing experiment details
 echo "Starting experiment..."
+echo "SLURM Job ID: $SLURM_JOB_ID"
 echo "PWD: $(pwd)"
 echo "SINGULARITY_CONTAINER: $SINGULARITY_CONTAINER"
 echo "SINGULARITY_INSTANCE: $SINGULARITY_INSTANCE"
@@ -120,9 +107,9 @@ echo "Loading singularity..."
 module load singularity/4.0.2
 singularity version
 
-# Starting Singularity instance
-echo "Starting Singularity instance..."
-singularity instance start --nv --cleanenv \
+# Run Experiment
+echo "Running Experiment..."
+srun singularity exec --cleanenv --pid --nv --cwd /workspace \
 	--env-file $(pwd)/mounts/.env \
 	-B $(pwd)/mounts/checkpoints:/workspace/checkpoints \
 	-B $(pwd)/mounts/configs:/workspace/configs \
@@ -130,28 +117,8 @@ singularity instance start --nv --cleanenv \
 	-B $(pwd)/mounts/logs:/workspace/logs \
 	-B $(pwd)/mounts/src:/workspace/src \
 	-B $(pwd)/mounts/tests:/workspace/tests \
-	$(pwd)/$SINGULARITY_CONTAINER $SINGULARITY_INSTANCE
-
-
-# Installing python local packages
-echo "Installing python local packages..."
-singularity exec --nv --cwd /workspace --env-file $(pwd)/mounts/.env \
-	instance://$SINGULARITY_INSTANCE pip install -e .
-
-# Run python tests if required
-if [ $RUN_TESTS == 1 ]; then
-	echo "Running Tests..."
-	singularity exec --writable-tmpfs --nv --cwd /workspace --env-file $(pwd)/mounts/.env instance://preset-embedding pytest
-fi
-
-# Run Experiment
-echo "Running Experiment..."
-srun singularity exec --pid --nv --cwd /workspace --env-file $(pwd)/mounts/.env \
-	instance://$SINGULARITY_INSTANCE $ARGS &
+	$(pwd)/$SINGULARITY_CONTAINER bash -c "pip install --user -e . && $ARGS" &
 wait
-
-echo "Stopping Singularity instance..."
-singularity instance stop $SINGULARITY_INSTANCE
 
 # Exit with success
 echo "Job finished successfully!"

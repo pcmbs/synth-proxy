@@ -44,6 +44,14 @@ class PresetEmbeddingLitModule(LightningModule):
         self.mrr_preds = []
         self.mrr_targets = None
 
+        # distance for MRR
+        if isinstance(loss, nn.L1Loss):
+            self.p_norm_validation = 1
+        elif isinstance(loss, nn.MSELoss):
+            self.p_norm_validation = 2
+        else:
+            raise NotImplementedError(f"p-norm for loss {loss} not implemented")
+
         # self.save_hyperparameters("optimizer", "lr", "scheduler")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -109,7 +117,7 @@ class PresetEmbeddingLitModule(LightningModule):
         targets = self.mrr_targets.unsqueeze_(1)
         # concatenate and reshape for torch.cdist-> shape (num_eval, num_preds_per_eval, dim)
         preds = torch.cat(self.mrr_preds, dim=1).view(num_eval, -1, preds_dim)
-        mrr_score = compute_mrr(preds, targets, index=0, p=1)
+        mrr_score = compute_mrr(preds, targets, index=0, p=self.p_norm_validation)
         self.log("val/mrr", mrr_score, prog_bar=True, on_step=False, on_epoch=True)
 
     def configure_optimizers(self) -> Any:

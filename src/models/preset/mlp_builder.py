@@ -199,8 +199,6 @@ class HighwayBlock(nn.Module):
                 nn.Dropout(p=residual_dropout_p),
             )
 
-        self.init_weights()
-
     def init_weights(self) -> None:
         # FC layer (linear and normalization layers)
         nn.init.kaiming_normal_(self.fc[0].weight, mode="fan_in", nonlinearity="relu")

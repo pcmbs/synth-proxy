@@ -28,3 +28,7 @@ deterministic: False
 
 # if speedup is needed without deterministic results
 # benchmark: True
+
+# Runs n if set to n (int) else 1 if set to True batch(es) of train, 
+# val and test to find any bugs (ie: a sort of unit test). Default: False.
+fast_dev_run: False

@@ -154,6 +154,28 @@ class PresetHelper:
         return self._used_cat_parameters_idx
 
     @property
+    def used_num_parameters_idx(self) -> List[int]:
+        """
+        Return the indices of the numerical synthesizer parameters
+        relative to the used parameters.
+
+        Used synthesizer parameters refer to parameters that are allowed
+        to vary across training samples and are thus inputs to the preset encoder.
+        """
+        return self._used_num_parameters_idx
+
+    @property
+    def used_bin_parameters_idx(self) -> List[int]:
+        """
+        Return the indices of the binary synthesizer parameters
+        relative to the used parameters.
+
+        Used synthesizer parameters refer to parameters that are allowed
+        to vary across training samples and are thus inputs to the preset encoder.
+        """
+        return self._used_bin_parameters_idx
+
+    @property
     def grouped_used_parameters(self) -> dict:
         """
         Return a dictionary of the used synthesizer parameters grouped by types (`continuous` or `discrete`).
@@ -162,7 +184,7 @@ class PresetHelper:
         and are thus inputs to the preset encoder.
 
         - The `continuous` sub-dictionary contains intervals (tuple of floats) as keys and lists of indices
-        (relative to the used parameters) of numerical synthesizer parameterssharing that interval as values.
+        (relative to the used parameters) of numerical synthesizer parameters sharing that interval as values.
         Note: Categorical and binary synthesizer parameters are inherently discrete and are not included
         in the `continuous` sub-dictionary.
 

@@ -38,32 +38,6 @@ def instantiate_callbacks(callbacks_cfg: DictConfig) -> List[Callback]:
     return callbacks
 
 
-def instantiate_loggers(logger_cfg: DictConfig) -> List[Logger]:
-    """Instantiates loggers from config.
-
-    Args:
-        logger_cfg (DictConfig): A DictConfig object containing logger configurations.
-
-    Returns:
-        A list of instantiated loggers.
-    """
-    logger: List[Logger] = []
-
-    if not logger_cfg:
-        log.warning("No logger configs found! Skipping...")
-        return logger
-
-    if not isinstance(logger_cfg, DictConfig):
-        raise TypeError("Logger config must be a DictConfig!")
-
-    for _, lg_conf in logger_cfg.items():
-        if isinstance(lg_conf, DictConfig) and "_target_" in lg_conf:
-            log.info(f"Instantiating logger <{lg_conf._target_}>")
-            logger.append(hydra.utils.instantiate(lg_conf))
-
-    return logger
-
-
 def check_val_dataset(train_dataset: Dataset, val_dataset: Dataset) -> None:
     assert (
         val_dataset.audio_fe_name == train_dataset.audio_fe_name

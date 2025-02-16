@@ -10,6 +10,15 @@ import torch
 import torch.optim.lr_scheduler as S
 
 
+def reduce_on_plateau(
+    optimizer: torch.optim.Optimizer, mode: str, factor: float, patience: int, **kwargs
+) -> S._LRScheduler:
+    """
+    Wrapper for ReduceLROnPlateau scheduler.
+    """
+    return S.ReduceLROnPlateau(optimizer, mode=mode, factor=factor, patience=patience, **kwargs)
+
+
 def lin_cos_scheduler_builder(
     optimizer: torch.optim.Optimizer,
     total_steps: int,
@@ -140,7 +149,7 @@ def add_wcrc_scheduler_to_ckpt(
 
 def _add_wcrc_scheduler_to_ckpt(ckpt: dict, num_restart_steps: int) -> dict:
     if ckpt.get("lr_schedulers") is None:
-        raise ValueError("No lr_schedulers in checkpoint")
+        raise KeyError("No lr_schedulers in checkpoint")
 
     ckpt = deepcopy(ckpt)
 

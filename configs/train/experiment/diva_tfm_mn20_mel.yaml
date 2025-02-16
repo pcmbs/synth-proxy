@@ -1,11 +1,11 @@
 # @package _global_
 
 defaults:
-  - override /train_dataset: diva_mn04_v1
-  - override /val_dataset: diva_mn04_v1
+  - override /train_dataset: diva_mn20_mel_v1
+  - override /val_dataset: diva_mn20_mel_v1
   - override /m_preset: tfm
 
-task_name: diva_tfm_b
+task_name: diva_tfm_mn20_mel
 
 ########## hyperparameters 
 
@@ -25,14 +25,19 @@ solver:
       - 0.987
     eps: 5e-10
 
+  # https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.ReduceLROnPlateau.html
   scheduler:
-    _target_: utils.lr_schedulers.wcrc_scheduler_builder 
-    min_lr: 2e-6
-    num_warmup_steps: 7500
-    warmup_factor: 1.0
-    num_decay_steps: 392_500 # warmup+cosine corresponds to 10 epochs at bs=256
-    num_restart_steps: 800_000 # 20 epochs
-    restart_factor: 1.0 # full restart
+    _target_: utils.lr_schedulers.reduce_on_plateau
+    mode: min # monitor L1 validation loss
+    factor: 0.1
+    patience: 5
+
+# monitor L1 validation loss every epoch
+  scheduler_config:
+    monitor: val/loss
+    interval: epoch
+    frequency: 1
+
 
 
 ########## training setup
@@ -42,10 +47,14 @@ train_dataset:
 
 trainer:
   # kwargs for lightning trainer
-  max_epochs: 30
+  max_epochs: 50
   
   # set True to to ensure deterministic results
   # improve reproducibility over setting seeds alone (can slightly slow training)
   deterministic: True
+
+# activate SLURMEnvironment auto requeue 
+slurm:
+  auto_requeue: True
 
 # ckpt_path: ${paths.ckpt_dir}/restart/diva_tfm_b_re20.ckpt

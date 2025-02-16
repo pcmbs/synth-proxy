@@ -53,8 +53,8 @@ seed: 42
 # To resume from another checkpoint of a previous run it is recommended to only set ckpt_path to the checkpoint you want to resume from
 # This will create a new run_dir and wandb run
 
-ckpt_path: last # resume from beginning of the current epoch. Overwrite if necessary.
+ckpt_path: null # path last to resume from beginning of the current epoch. Overwrite if necessary.
 run_id: null # pass a correct id to resume experiment
 
-# Disable Lightning's SLURMEnvironment plugin on HPC by default, can be overwritten in experiments
-deactivate_slurm_lightning: True
+slurm:
+  auto_requeue: True
