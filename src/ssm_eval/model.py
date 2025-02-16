@@ -48,6 +48,11 @@ class SSMLitModule(LightningModule):
                 log_graph=False,
             )
 
+        # initialize synth proxy LR warmup
+        _, proxy_opt = self.optimizers()
+        for pg in proxy_opt.optimizer.param_groups:
+            pg["lr"] = self.opt_cfg["synth_proxy"]["lr"] * 1.0 / self.num_warmup_steps
+
     def _model_step(self, batch):
         x, z, y = batch  # mel, parameters, audio embedding
 
@@ -77,13 +82,12 @@ class SSMLitModule(LightningModule):
 
         # linear LR warmup for synth proxy
         if self.trainer.global_step < self.num_warmup_steps:
-            _, _, proxy_warmup_sch = self.lr_schedulers()
-            proxy_warmup_sch.step()
+            # _, _, proxy_warmup_sch = self.lr_schedulers()
+            # proxy_warmup_sch.step()
 
-        # if self.trainer.global_step < self.num_warmup_steps:
-        #     lr_scale = min(1.0, float(self.trainer.global_step + 1) / self.num_warmup_steps)
-        #     for pg in proxy_opt.optimizer.param_groups:
-        #         pg["lr"] = self.opt_cfg["synth_proxy"]["lr"] * lr_scale
+            lr_scale = min(1.0, float(self.trainer.global_step + 1) / self.num_warmup_steps)
+            for pg in proxy_opt.optimizer.param_groups:
+                pg["lr"] = self.opt_cfg["synth_proxy"]["lr"] * lr_scale
 
         self.log("train/loss_z", loss_z, prog_bar=True, on_step=True, on_epoch=True)
         self.log("train/loss_y", loss_y, prog_bar=True, on_step=True, on_epoch=True)
@@ -97,9 +101,11 @@ class SSMLitModule(LightningModule):
         self.log("val/loss", loss, on_step=False, on_epoch=True)
 
     def on_train_epoch_end(self):
-        est_sch, proxy_sch, _ = self.lr_schedulers()
+        # est_sch, proxy_sch, _ = self.lr_schedulers()
+        est_sch, proxy_sch = self.lr_schedulers()
 
         est_sch.step(self.trainer.callback_metrics["val/loss_z"])
+        # only start proxy scheduler after warmup
         if self.trainer.global_step >= self.num_warmup_steps:
             proxy_sch.step(self.trainer.callback_metrics["val/loss_y"])
 
@@ -134,14 +140,15 @@ class SSMLitModule(LightningModule):
             patience=self.opt_cfg["synth_proxy"]["scheduler"]["patience"],
         )
 
-        proxy_warmup_sch = S.LinearLR(
-            proxy_opt,
-            start_factor=0.05,
-            end_factor=1,
-            total_iters=self.num_warmup_steps,
-        )
+        # proxy_warmup_sch = S.LinearLR(
+        #     proxy_opt,
+        #     start_factor=0.05,
+        #     end_factor=1,
+        #     total_iters=self.num_warmup_steps,
+        # )
 
-        schedulers = [est_sch, proxy_sch, proxy_warmup_sch]
+        # schedulers = [est_sch, proxy_sch, proxy_warmup_sch]
+        schedulers = [est_sch, proxy_sch]
 
         return optimizers, schedulers
 
