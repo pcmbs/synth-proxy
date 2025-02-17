@@ -184,7 +184,7 @@ if __name__ == "__main__":
 
     dataset = SynthDatasetPkl(
         PATH_TO_DATASET,
-        split="test",
+        split="train",
         has_mel=True,
         mel_norm="mean_std",
         mmap=True,

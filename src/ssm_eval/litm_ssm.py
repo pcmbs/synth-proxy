@@ -53,7 +53,14 @@ class SSMLitModule(LightningModule):
         for pg in proxy_opt.optimizer.param_groups:
             pg["lr"] = self.opt_cfg["synth_proxy"]["lr"] * 1.0 / self.num_warmup_steps
 
-    def _model_step(self, batch):
+    def on_train_end(self) -> None:
+        if isinstance(self.logger, WandbLogger) and self.wandb_watch_args is not None:
+            self.logger.experiment.unwatch(self.estimator)
+            self.logger.experiment.unwatch(self.synth_proxy)
+
+    def training_step(self, batch, batch_idx: int):
+        est_opt, proxy_opt = self.optimizers()
+
         x, z, y = batch  # mel, parameters, audio embedding
 
         # parameter loss
@@ -66,16 +73,10 @@ class SSMLitModule(LightningModule):
 
         loss = loss_z + loss_y
 
-        return loss, loss_z, loss_y
-
-    def training_step(self, batch, batch_idx: int):
-        est_opt, proxy_opt = self.optimizers()
-
-        loss, loss_z, loss_y = self._model_step(batch)
-
         # backward
         est_opt.zero_grad()
         proxy_opt.zero_grad()
+        self.manual_backward(loss_y, retain_graph=True)
         self.manual_backward(loss)
         est_opt.step()
         proxy_opt.step()
@@ -94,7 +95,17 @@ class SSMLitModule(LightningModule):
         self.log("train/loss", loss, prog_bar=True, on_step=True, on_epoch=True)
 
     def validation_step(self, batch, batch_idx: int):
-        loss, loss_z, loss_y = self._model_step(batch)
+        x, z, y = batch  # mel, parameters, audio embedding
+
+        # parameter loss
+        z_hat = self.estimator(x)
+        loss_z = F.l1_loss(z_hat, z)
+
+        # perceptual loss
+        y_hat = self.synth_proxy(z_hat)
+        loss_y = F.l1_loss(y_hat, y)
+
+        loss = loss_z + loss_y
 
         self.log("val/loss_z", loss_z, on_step=False, on_epoch=True)
         self.log("val/loss_y", loss_y, on_step=False, on_epoch=True)
@@ -193,7 +204,7 @@ if __name__ == "__main__":
         def __len__(self):
             return self.len
 
-    DEBUG = False
+    DEBUG = True
     estimator = estimator()
     synth_proxy = synth_proxy()
     opt_cfg = {
@@ -239,6 +250,7 @@ if __name__ == "__main__":
             deterministic=True,
             default_root_dir=None,
             enable_checkpointing=False,
+            logger=False,
         )
 
     trainer.fit(model, dataloader_train, dataloader_val)

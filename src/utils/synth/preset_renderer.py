@@ -30,6 +30,7 @@ class PresetRenderer:
         self.sample_rate = sample_rate
         self.render_duration_in_sec = render_duration_in_sec
         self.engine = daw.RenderEngine(self.sample_rate, block_size=128)  # pylint: disable=E1101
+        print(self.synth_path)
         self.synth = self.engine.make_plugin_processor(self.synth_name, self.synth_path)
         graph = [(self.synth, [])]
         self.engine.load_graph(graph)

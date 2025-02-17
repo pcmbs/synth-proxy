@@ -10,7 +10,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from data.datasets.synth_dataset_pkl import SynthDatasetPkl
-from ssm_eval.convnet import ConvNet
+from ssm_eval.estimator_network import ConvNet
 from utils.synth import PresetHelper
 
 load_dotenv()
@@ -20,7 +20,7 @@ PROJECT_ROOT = Path(os.environ["PROJECT_ROOT"])
 PATH_TO_DATASET = PROJECT_ROOT / "data" / "datasets" / "eval" / "diva_mn20_hc_v1"
 
 SYNTH = "diva"
-
+ 
 
 class ParameterLoss(nn.Module):
     """

@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from utils.synth import PresetHelper
-
+ 
 
 class ConvNet(nn.Module):
     def __init__(self, preset_helper: PresetHelper):

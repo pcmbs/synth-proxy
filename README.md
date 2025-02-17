@@ -19,7 +19,7 @@ The aim of this repository is to use various neural network architectures, inclu
 
 ## Installation
 
-This project supports installation via pip and Docker. After cloning the repository, choose one of the following methods:
+This project supports installation via pip and Docker. After cloning the repository and [installing synthesizers](#adding-synthesizers) (if required), choose one of the following methods:
 
 ### Installation using pip
 
@@ -92,7 +92,7 @@ To add a new synthesizer, follow these steps:
 
 5) Add additional arguments for each SynthParameter instance if desired (see [./src/utils/synth/synth_parameter.py](./src/utils/synth/synth_parameter.py) and existing synthesizers for examples). These are used to constraint the sampling process used to generated synthetic presets.
 
-6) Add the created python file for the new synthesizer to the package under [./src/data/synths/__init__.py](./src/data/synths/\_\_init\_\_.py).
+6) Add the created python file for the new synthesizer to the package under [./src/data/synths/\_\_init\_\_.py](./src/data/synths/__init__.py).
 
 7) Add the synthesizer name to the list of supported synthesizer names in the the PresetHelper class definition in [./src/utils/synth/preset_helper.py](./src/utils/synth/preset_helper.py) as well as in the SynthDataset class definition in [./src/data/datasets/synth_dataset.py](./src/data/datasets/synth_dataset.py).
 
@@ -123,7 +123,7 @@ Remarks:
 
 3) Instantiate the model below the wrapper class (see existing models for example). 
 
-4) Add the instantiated model to the models.audio package by adding it in [./src/models/audio/__init__.py](./src/models/audio/\_\_init\_\_.py).
+4) Add the instantiated model to the models.audio package by adding it in [./src/models/audio/\_\_init\_\_.py](./src/models/audio/__init__.py).
 
 Once these steps are completed, the model can be used to generate a new dataset using the argument `audio_fe=<my_model>`. See [Data Generation](#data-generation) for more details.
 
