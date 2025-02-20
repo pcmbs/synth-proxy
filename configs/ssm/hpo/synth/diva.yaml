@@ -1,0 +1,19 @@
+# @package _global_
+
+# synthesizer to use
+synth: diva
+
+# path to the checkpoint to load for the synth proxy
+path_to_ckpt: ${paths.root_dir}/checkpoints/diva_tfm_mn20_mel_e59_loss0.0329.ckpt
+
+search_space:
+  # number of linear LR warmup steps
+  # Diva: len(train_dataset) is 7721 if [0.8, 0.1, 0.1] is used (and overall train split) 
+  #       hence, one epoch at batch_size=64 is 7721//64 = 120
+  num_warmup_steps:
+    type: int
+    kwargs:
+      name: num_warmup_steps
+      low: 120 # 1 epoch
+      high: 1200 # 10 epochs
+      step: 120

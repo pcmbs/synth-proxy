@@ -1,0 +1,60 @@
+# @package _global_
+
+defaults:
+  - override /train_dataset: dexed_mn20_mel_v1
+  - override /val_dataset: dexed_mn20_mel_v1
+  - override /m_preset: tfm
+
+task_name: dexed_tfm_mn20_mel
+
+########## hyperparameters 
+
+m_preset: # 4_894_144 parameters
+  cfg:
+    num_blocks: 6
+    hidden_features: 256
+    num_heads: 8
+    mlp_factor: 4
+    pooling_type: cls
+
+solver:
+  lr: 1e-3
+  optimizer:
+    betas:
+      - 0.910
+      - 0.987
+    eps: 2e-8
+
+  # https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.ReduceLROnPlateau.html
+  scheduler:
+    _target_: utils.lr_schedulers.reduce_on_plateau
+    mode: min # monitor L1 validation loss
+    factor: 0.1
+    patience: 5
+
+# monitor L1 validation loss every epoch
+  scheduler_config:
+    monitor: val/loss
+    interval: epoch
+    frequency: 1
+
+
+
+########## training setup
+train_dataset:
+  loader:
+    batch_size: 256
+
+trainer:
+  # kwargs for lightning trainer
+  max_epochs: 60
+  
+  # set True to to ensure deterministic results
+  # improve reproducibility over setting seeds alone (can slightly slow training)
+  deterministic: True
+
+# activate SLURMEnvironment auto requeue 
+slurm:
+  auto_requeue: True
+
+# ckpt_path: ${paths.ckpt_dir}/restart/diva_tfm_b_re20.ckpt

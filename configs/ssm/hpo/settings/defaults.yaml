@@ -1,33 +1,8 @@
-#########################################
-############ Main Parameters ############
-#########################################
-# synthesizer to use
-synth: diva
+# @package _global_
 
-#dataset to use for finetuning
-dataset_name: mn20_hc_v1
-
-# path to the checkpoint to load
-path_to_ckpt: ${paths.root_dir}/checkpoints/diva_tfm_mn20_mel_e59.ckpt
-
-# random seed for reproducibility
-seed: 42
-
-# batch size for the train and val dataloaders
-batch_size: 64
-
-# number of epochs for each trial
-trainer:
-  max_epochs: 50
-  log_every_n_steps: 50
-
-# number of trials to run
-# the number of TPE trials is num_trials-sampler.num_startup_trials
-num_trials: 100
-
-# number of QMC startup trials to run before the TPE algorithm
-num_startup_trials: 36
-
+######################################
+############ Data Configs ############
+######################################
 
 ######################################
 ############ Data Configs ############
@@ -35,75 +10,14 @@ num_startup_trials: 36
 dataset:
   path_to_dataset: ${paths.root_dir}/data/datasets/eval/${synth}_${dataset_name}
   split: train
-  has_mel: false
+  # has_mel: null # passed in main config
 
 num_workers: 0
 
-train_val_split:
-  - 0.8
-  - 0.2
-
-
-######################################
-############ Search space ############
-######################################
-search_space:
-  ##### Adam HPs
-
-  lr: 
-    type: float
-    kwargs:
-      name: lr
-      low: 1e-8
-      high: 5e-3
-      log: true
-    
-  # Exp decay rate for 1st moment estimate
-  beta1:
-    type: float
-    kwargs:
-      name: beta1
-      low: 0.75
-      high: 0.95
-      step: 0.001
-
-  # Exp decay rate for 1st moment estimate
-  beta2:
-    type: float
-    kwargs:
-      name: beta2
-      low: 0.85
-      high: 0.999
-      step: 0.001
-
-  # epsilon for numerical stability
-  eps:
-    type: float
-    kwargs:
-      name: eps
-      low: 1e-10
-      high: 1e-4
-      log: true
-
-  # weight decay
-  weight_decay:
-    type: float
-    kwargs:
-      name: weight_decay
-      low: 0.0001
-      high: 10.0
-      log: 0.01
-
-  # number of linear LR warmup steps
-  # Diva: len(train_dataset) is 6482 if [0.8,0.2] is used (and overall train split) 
-  #       hence, one epoch at batch_size=64 is 6482//64 101
-  num_warmup_steps:
-    type: int
-    kwargs:
-      name: num_warmup_steps
-      low: 101
-      high: 1010
-      step: 101
+# the follow value are required to have a 0.8-0.1-0.1 train-val-test split
+train_val_split: 
+  - 0.89
+  - 0.11
 
 ########################################
 ############ Optuna configs ############
@@ -168,12 +82,8 @@ synth_proxy:
 ###################################
 ############ Artifacts ############
 ###################################
-# tag for the current study and log folders
-tag: ${synth}_tfm_${dataset_name}_bs${batch_size}_ft
-
 # name of the optuna study
-study_name: ${tag}_hpo
-
+study_name: ssm_${synth}_${dataset_name}_bs${batch_size}_${tag}
 
 ######################################
 ############ Hydra configs ###########
@@ -184,9 +94,9 @@ paths:
 
 hydra:
   run:
-    dir: ${paths.root_dir}/logs/optuna/${tag}
+    dir: ${paths.root_dir}/logs/optuna/${study_name}
   sweep:
-    dir:  ${paths.root_dir}/logs/optuna/${tag}
+    dir:  ${paths.root_dir}/logs/optuna/${study_name}
     subdir: ${hydra.job.num}
 
   job: 
@@ -211,9 +121,6 @@ wandb:
   offline: False
   id: null # pass correct id to resume experiment!
   anonymous: null # enable anonymous logging
-  project: ${study_name}
+  project: hpo_${study_name}
   log_model: False # upload lightning ckpts
-  prefix: "" # a string to put at the beginning of metric keys
-  group: ""
-  tags: ""
   job_type: hpo

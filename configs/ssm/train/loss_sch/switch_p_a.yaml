@@ -1,0 +1,12 @@
+# swtich from parameter loss to audio embedding loss
+param:
+  start: ${start}
+  warm: ${warm}
+  start_value: 1.0
+  end_value: 0.0
+
+perc:  
+  start: ${start}
+  warm: ${warm}
+  start_value: 0.0
+  end_value: 1.0

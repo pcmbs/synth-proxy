@@ -1,0 +1,93 @@
+# @package _global_
+
+defaults:
+  - _self_
+  - synth: ???
+  - settings: defaults
+
+######################################
+############ Main Configs ############
+######################################
+
+# tag for the current study and log folders
+tag: sp_ft
+
+#dataset to use for finetuning
+dataset_name: mn20_hc_v1
+
+# random seed for reproducibility
+seed: 42
+
+# batch size for the train and val dataloaders
+batch_size: 64
+
+# number of epochs for each trial
+trainer:
+  max_epochs: 50
+  log_every_n_steps: 50
+
+# number of trials to run
+# the number of TPE trials is num_trials-sampler.num_startup_trials
+num_trials: 100
+
+# number of QMC startup trials to run before the TPE algorithm
+num_startup_trials: 36
+
+# whether to return the mel spectrograms while iterating over the dataset
+# This is required for the estimator network but not for the synth proxy 
+dataset:
+  has_mel: false
+
+
+######################################
+############ Search space ############
+######################################
+search_space:
+  ##### Adam HPs
+
+  lr: 
+    type: float
+    kwargs:
+      name: lr
+      low: 1e-8
+      high: 5e-3
+      log: true
+    
+  # Exp decay rate for 1st moment estimate
+  beta1:
+    type: float
+    kwargs:
+      name: beta1
+      low: 0.75
+      high: 0.95
+      step: 0.001
+
+  # Exp decay rate for 1st moment estimate
+  beta2:
+    type: float
+    kwargs:
+      name: beta2
+      low: 0.85
+      high: 0.999
+      step: 0.001
+
+  # epsilon for numerical stability
+  eps:
+    type: float
+    kwargs:
+      name: eps
+      low: 1e-10
+      high: 1e-4
+      log: true
+
+  # weight decay
+  weight_decay:
+    type: float
+    kwargs:
+      name: weight_decay
+      low: 1e-4
+      high: 10.0
+      log: true
+
+
+

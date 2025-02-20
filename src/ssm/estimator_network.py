@@ -9,9 +9,9 @@ import torch.nn.functional as F
 from torch import nn
 
 from utils.synth import PresetHelper
- 
 
-class ConvNet(nn.Module):
+
+class EstimatorNet(nn.Module):
     def __init__(self, preset_helper: PresetHelper):
         super().__init__()
 
@@ -97,7 +97,6 @@ class ConvNet(nn.Module):
         return out_dim
 
 
-
 if __name__ == "__main__":
     import os
     from pathlib import Path
@@ -116,7 +115,7 @@ if __name__ == "__main__":
 
     p_helper = PresetHelper(SYNTH, excluded_params)
 
-    model = ConvNet(p_helper)
+    model = EstimatorNet(p_helper)
     model.eval()
     print(model)
 

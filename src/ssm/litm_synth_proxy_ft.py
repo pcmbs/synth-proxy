@@ -26,14 +26,13 @@ class SynthProxyFT(LightningModule):
     def __init__(
         self,
         synth_proxy: nn.Module,
-        loss: nn.Module,
-        opt_cfg=Dict,
+        opt_cfg=Dict[str, Any],
         wandb_watch_args: Optional[Dict[str, Any]] = None,
         trial: Optional[Trial] = None,
     ):
         super().__init__()
         self.synth_proxy = synth_proxy
-        self.loss = loss
+        self.loss = nn.L1Loss()
         self.opt_cfg = opt_cfg
         self.lr = opt_cfg["optimizer_kwargs"]["lr"]
         self.num_warmup_steps = int(opt_cfg["num_warmup_steps"])
@@ -121,15 +120,14 @@ if __name__ == "__main__":
     import torch.nn.functional as F
     from torch.utils.data import Dataset, DataLoader, random_split
 
-    DEBUG = False
+    DEBUG = True
 
     RANDOM_SPLIT = [0.8, 0.2]
     BATCH_SIZE = 8
     MAX_EPOCHS = 200
-    LOSS_FN = nn.L1Loss()
     OPT_CFG = {
         "optimizer_kwargs": {"lr": 1e-3, "betas": (0.9, 0.999), "eps": 1e-08, "weight_decay": 0.2},
-        # "scheduler_kwargs": {"factor": 0.5, "patience": 5},
+        "scheduler_kwargs": {"factor": 0.5, "patience": 5},
         "num_warmup_steps": 160 * 0.8 / 8 * 100,
     }
 
@@ -168,7 +166,7 @@ if __name__ == "__main__":
 
     # model and trainer
     synth_proxy = synth_proxy()
-    model = SynthProxyFT(synth_proxy, LOSS_FN, OPT_CFG)
+    model = SynthProxyFT(synth_proxy, OPT_CFG)
     if DEBUG is False:
         trainer = Trainer(
             max_epochs=MAX_EPOCHS,

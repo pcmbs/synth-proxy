@@ -1,0 +1,17 @@
+# @package _global_
+
+# synthesizer to use
+synth: diva
+
+# path to the checkpoint to load for the synth proxy
+path_to_ckpt: ${paths.root_dir}/checkpoints/diva_tfm_mn20_mel_e59_loss0.0329.ckpt
+
+optimizer:
+  optimizer_kwargs:
+    lr: 5e-5
+    betas:
+      - 0.86
+      - 0.998
+    eps: 1e-8
+    weight_decay: 0.08
+  num_warmup_steps: 600 # 5 epochs

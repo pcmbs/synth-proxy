@@ -30,7 +30,7 @@ from torch.utils.data import DataLoader, random_split
 import wandb
 
 from data.datasets import SynthDatasetPkl
-from ssm_eval.litm_synth_proxy_ft import SynthProxyFT
+from ssm.litm_synth_proxy_ft import SynthProxyFT
 from utils.logging import RankedLogger
 from utils.synth import PresetHelper
 
@@ -109,7 +109,6 @@ def objective(trial: optuna.trial.Trial, cfg: DictConfig, is_startup: bool) -> f
     # instantiate Lightning Module
     model = SynthProxyFT(
         synth_proxy=synth_proxy,
-        loss=nn.L1Loss(),
         opt_cfg=opt_cfg,
         trial=trial,
     )
@@ -125,7 +124,7 @@ def objective(trial: optuna.trial.Trial, cfg: DictConfig, is_startup: bool) -> f
         logger=logger,
         enable_checkpointing=False,
         enable_model_summary=False,
-        enable_progress_bar=True,
+        enable_progress_bar=False,
         deterministic=True,
         callbacks=[PyTorchLightningPruningCallback(trial, monitor=cfg.metric_to_optimize)],
         log_every_n_steps=cfg.trainer.log_every_n_steps,
@@ -179,7 +178,7 @@ def objective(trial: optuna.trial.Trial, cfg: DictConfig, is_startup: bool) -> f
     return metric_value
 
 
-@hydra.main(version_base="1.3", config_path="../../configs/ssm_eval", config_name="hpo_synth_proxy_ft.yaml")
+@hydra.main(version_base="1.3", config_path="../../configs/ssm/hpo", config_name="synth_proxy_ft.yaml")
 def hpo(cfg: DictConfig) -> None:
     """Main function for HPO. Config defined in `configs/hpo/hpo.yaml`."""
     # Add stream handler of stdout to show the messages
