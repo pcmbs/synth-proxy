@@ -5,9 +5,10 @@ from torch import nn
 import torch.nn.functional as F
 from lightning import LightningModule
 from lightning.pytorch.loggers.wandb import WandbLogger
+from torchmetrics.classification import BinaryAccuracy, MulticlassAccuracy
 from optuna.trial import Trial
 
-from ssm.loss_scheduler import LossScheduler
+from ssm.loss_scheduler import LossScheduler, NopScheduler
 from utils.logging import RankedLogger
 from utils.synth import PresetHelper
 
@@ -23,7 +24,7 @@ class SSMLitModule(LightningModule):
         loss_sch_cfg: Optional[Dict[str, Any]] = None,
         synth_proxy: Optional[nn.Module] = None,
         label_smoothing: float = 0.0,
-        cat_loss_weight: float = 1.0,
+        lw_cat: float = 1.0,
         wandb_watch_args: Optional[Dict[str, Any]] = None,
         trial: Optional[Trial] = None,
     ):
@@ -45,7 +46,7 @@ class SSMLitModule(LightningModule):
         self.cat_loss_fn = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
         self.bin_loss_fn = nn.BCEWithLogitsLoss()
         self.label_smoothing = label_smoothing
-        self.cat_loss_weight = cat_loss_weight
+        self.lw_cat = lw_cat
 
         # perceptual loss
         self.perceptual_loss_fn = nn.L1Loss()
@@ -56,12 +57,26 @@ class SSMLitModule(LightningModule):
             self.loss_scheduler = LossScheduler(**loss_sch_cfg)  # TODO: finish implementing that
             self.param_sch, self.perc_sch = self.loss_scheduler.get_schedules()
         else:
-            self.param_sch, self.perc_sch = (1.0, 1.0)
+            self.param_sch, self.perc_sch = NopScheduler(1.0), NopScheduler(1.0)
+        self.last_lw_a = 1.0
+        self.last_lw_p = 1.0
+
+        # set synth proxy to None if only parameter loss
+        if isinstance(self.perc_sch, NopScheduler):
+            if self.perc_sch.value == 0.0:
+                self.synth_proxy = None
 
         # synthesizer parameter indices
         pred_idx, target_idx = self._initialize_synth_parameters_idx()
         self.num_idx_pred, self.cat_idx_pred, self.bin_idx_pred = pred_idx
         self.num_idx_target, self.cat_idx_target, self.bin_idx_target = target_idx
+        self.has_num_params = len(self.num_idx_target) > 0
+        self.has_cat_params = len(self.cat_idx_target) > 0
+        self.has_bin_params = len(self.bin_idx_target) > 0
+
+        # validation and test metrics
+        self.bin_acc = BinaryAccuracy()
+        self.cat_acc = MulticlassAccuracy(num_classes=max(len(t) for t in self.cat_idx_pred))
 
     def _initialize_synth_parameters_idx(self):
         # index of parameters per type in the target vector
@@ -95,34 +110,49 @@ class SSMLitModule(LightningModule):
         presets = torch.zeros(pred.shape[0], self.p_helper.num_used_parameters, device=pred.device)
 
         # Pass the predictions through sigmoid for numerical parameters since in [0, 1]
-        presets[:, self.num_idx_target] = F.sigmoid(pred[:, self.num_idx_pred])
+        if self.has_num_params:
+            presets[:, self.num_idx_target] = F.sigmoid(pred[:, self.num_idx_pred])
 
         # 0 or 1 for binary parameters (discrimination threshold at 0.5)
-        presets[:, self.bin_idx_target] = F.sigmoid(pred[:, self.bin_idx_pred]).round()
+        if self.has_bin_params:
+            presets[:, self.bin_idx_target] = F.sigmoid(pred[:, self.bin_idx_pred]).round()
 
         # argmax for categorical parameters
-        for i, j in zip(self.cat_idx_pred, self.cat_idx_target):
-            # pred[:, i] = F.softmax(pred[:, i], dim=1)
-            presets[:, j] = torch.argmax(pred[:, i], dim=1)
+        if not self.has_cat_params:
+            for i, j in zip(self.cat_idx_pred, self.cat_idx_target):
+                # pred[:, i] = F.softmax(pred[:, i], dim=1)
+                presets[:, j] = torch.argmax(pred[:, i], dim=1)
+
         return presets
 
     def parameter_loss_fn(
         self, pred: torch.Tensor, target: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        # compute the loss for each type of parameter or return 0 if the current synthesizer does not possess that parameter type
+
         # regression loss for numerical parameters (pass through sigmoid first since in [0, 1])
-        loss_num = self.num_loss_fn(F.sigmoid(pred[:, self.num_idx_pred]), target[:, self.num_idx_target])
+        if self.has_num_params:
+            loss_num = self.num_loss_fn(F.sigmoid(pred[:, self.num_idx_pred]), target[:, self.num_idx_target])
+        else:
+            loss_num = 0.0
 
         # binary loss for binary parameters
-        loss_bin = self.bin_loss_fn(pred[:, self.bin_idx_pred], target[:, self.bin_idx_target])
+        if self.has_bin_params:
+            loss_bin = self.bin_loss_fn(pred[:, self.bin_idx_pred], target[:, self.bin_idx_target])
+        else:
+            loss_bin = 0.0
 
         # categorical loss for categorical parameters
-        # TODO: might need to scale down this loss...
-        loss_cat = sum(
-            [
-                self.cat_loss_fn(pred[:, i], target[:, j].to(dtype=torch.long))
-                for i, j in zip(self.cat_idx_pred, self.cat_idx_target)
-            ]
-        )
+        if self.has_cat_params:
+            loss_cat = sum(
+                [
+                    self.cat_loss_fn(pred[:, i], target[:, j].to(dtype=torch.long))
+                    for i, j in zip(self.cat_idx_pred, self.cat_idx_target)
+                ]
+            )
+        else:
+            loss_cat = 0.0
+
         return loss_num, loss_bin, loss_cat
 
     def training_step(self, batch, batch_idx: int):
@@ -133,18 +163,20 @@ class SSMLitModule(LightningModule):
         # parameter loss
         p_hat = self.estimator(m)
         loss_num, loss_bin, loss_cat = self.parameter_loss_fn(p_hat, p)
-        loss_cat = loss_cat * self.cat_loss_weight
-        loss_p = loss_num + loss_bin + loss_cat
+        loss_cat = loss_cat * self.lw_cat
+        lw_p = self.param_sch(self.trainer.global_step)
+        loss_p = (loss_num + loss_bin + loss_cat) * lw_p
 
         # perceptual loss
         if callable(self.synth_proxy):
             presets_hat = self.decode_presets(p_hat)  # probabilities -> presets
             a_hat = self.synth_proxy(presets_hat)
-            loss_a = self.perceptual_loss_fn(a_hat, a)
-            self.log("train/loss_a", loss_a, prog_bar=True, on_step=True, on_epoch=True)
+            lw_a = self.perc_sch(self.trainer.global_step)
+            loss_a = self.perceptual_loss_fn(a_hat, a) * lw_a
         else:
-            loss_a = 0
+            loss_a = 0.0
 
+        # composite loss
         loss = loss_p + loss_a
 
         # backward (only optimize estimator)
@@ -158,12 +190,24 @@ class SSMLitModule(LightningModule):
             for pg in opt.optimizer.param_groups:
                 pg["lr"] = self.lr * lr_scale
 
+        # last param/perc loss weights values for validation epoch
+        self.last_lw_p = lw_p
+        if callable(self.synth_proxy):
+            self.last_lw_a = lw_a
+
         # logging
-        self.log("train/loss_num", loss_num, on_step=True, on_epoch=True)
-        self.log("train/loss_bin", loss_bin, on_step=True, on_epoch=True)
-        self.log("train/loss_cat", loss_cat, on_step=True, on_epoch=True)
+        if self.has_num_params:
+            self.log("train/loss_num", loss_num, on_step=True, on_epoch=True)
+        if self.has_bin_params:
+            self.log("train/loss_bin", loss_bin, on_step=True, on_epoch=True)
+        if self.has_cat_params:
+            self.log("train/loss_cat", loss_cat, on_step=True, on_epoch=True)
         self.log("train/loss_p", loss_p, prog_bar=True, on_step=True, on_epoch=True)
         self.log("train/loss", loss, prog_bar=True, on_step=True, on_epoch=True)
+        self.log("lw/param", lw_p, on_step=True, on_epoch=True)
+        if callable(self.synth_proxy):
+            self.log("train/loss_a", loss_a, prog_bar=True, on_step=True, on_epoch=True)
+            self.log("lw/perc", lw_a, on_step=True, on_epoch=True)
 
     def validation_step(self, batch, batch_idx: int):
         p, a, m = batch  # synth parameters, audio embedding, mel spectrogram
@@ -171,26 +215,64 @@ class SSMLitModule(LightningModule):
         # parameter loss
         p_hat = self.estimator(m)
         loss_num, loss_bin, loss_cat = self.parameter_loss_fn(p_hat, p)
-        loss_cat = loss_cat * self.cat_loss_weight
-        loss_p = loss_num + loss_bin + loss_cat
+        loss_cat = loss_cat * self.lw_cat
+        loss_p = (loss_num + loss_bin + loss_cat) * self.last_lw_p
+
+        # probabilities -> presets
+        # for perceptual loss and accuracy metrics
+        presets_hat = self.decode_presets(p_hat)
 
         # perceptual loss
         if callable(self.synth_proxy):
-            presets_hat = self.decode_presets(p_hat)  # probabilities -> presets
             a_hat = self.synth_proxy(presets_hat)
-            loss_a = self.perceptual_loss_fn(a_hat, a)
-            self.log("val/loss_a", loss_a, on_step=False, on_epoch=True)
+            loss_a = self.perceptual_loss_fn(a_hat, a) * self.last_lw_a
         else:
-            loss_a = 0
+            loss_a = 0.0
 
         loss = loss_p + loss_a
 
         # logging
-        self.log("val/loss_num", loss_num, on_step=False, on_epoch=True)
-        self.log("val/loss_bin", loss_bin, on_step=False, on_epoch=True)
-        self.log("val/loss_cat", loss_cat, on_step=False, on_epoch=True)
+        if self.has_num_params:
+            self.log("val/loss_num", loss_num, on_step=False, on_epoch=True)
+            # mae_num = []
+            # for i in self.num_idx_target:
+            #     param_name = self.p_helper.used_parameters[i].name
+            #     mae = F.l1_loss(presets_hat[:, i], p[:, i])
+            #     mae_num.append(mae)
+            #     self.log(f"val/num_mae/{param_name}", mae, on_step=False, on_epoch=True)
+            # mae_num = sum(mae_num) / len(mae_num)
+
+        if self.has_bin_params:
+            self.log("val/bin_loss", loss_bin, on_step=False, on_epoch=True)
+            bin_acc = self.bin_acc(presets_hat[:, self.bin_idx_target], p[:, self.bin_idx_target])
+            self.log("val/bin_acc", bin_acc, on_step=False, on_epoch=True)
+            # maybe log accuracy for each bin params only for test set
+            # acc_bin = []
+            # for i in self.bin_idx_target:
+            #     param_name = self.p_helper.used_parameters[i].name
+            #     acc = self.bin_acc(presets_hat[:, i], p[:, i])
+            #     acc_bin.append(acc)
+            #     self.log(f"val/bin_acc/{param_name}", acc, on_step=False, on_epoch=True)
+            # acc_bin = sum(acc_bin) / len(acc_bin)
+
+        if self.has_cat_params:
+            self.log("val/cat_loss", loss_cat, on_step=False, on_epoch=True)
+            cat_acc = self.cat_acc(presets_hat[:, self.cat_idx_target], p[:, self.cat_idx_target])
+            self.log("val/cat_acc", cat_acc, on_step=False, on_epoch=True)
+            # maybe log accuracy for each cat params only for test set
+            # acc_cat = []
+            # for i in self.cat_idx_target:
+            #     param_name = self.p_helper.used_parameters[i].name
+            #     acc = self.cat_acc(presets_hat[:, i], p[:, i])
+            #     acc_cat.append(acc)
+            #     self.log(f"val/cat_acc/{param_name}", acc, on_step=False, on_epoch=True)
+            # acc_cat = sum(acc_cat) / len(acc_cat)
+
         self.log("val/loss_p", loss_p, on_step=False, on_epoch=True)
         self.log("val/loss", loss, on_step=False, on_epoch=True)
+
+        if callable(self.synth_proxy):
+            self.log("val/loss_a", loss_a, on_step=False, on_epoch=True)
 
     def on_train_start(self) -> None:
         if not isinstance(self.logger, WandbLogger) or self.wandb_watch_args is None:
@@ -240,6 +322,7 @@ class SSMLitModule(LightningModule):
 if __name__ == "__main__":
     # for dev/debug
     import os
+    import sys
 
     from dotenv import load_dotenv
     from omegaconf import OmegaConf
@@ -253,15 +336,19 @@ if __name__ == "__main__":
     load_dotenv()
 
     SYNTH = "diva"
-    DEBUG = True
+    DEBUG = False
 
     RANDOM_SPLIT = [0.89, 0.11]
     BATCH_SIZE = 64
-    MAX_EPOCHS = 20
+    MAX_EPOCHS = 1
     NUM_WARMUP_EPOCH = 5
 
     # helpers / utils
     PROJECT_ROOT = Path(os.environ["PROJECT_ROOT"])
+
+    gettrace = getattr(sys, "gettrace", None)
+    if gettrace():
+        DEBUG = True
 
     class synth_proxy(nn.Module):
         def __init__(self, in_dim: int, out_dim: int):
@@ -300,7 +387,7 @@ if __name__ == "__main__":
         synth_proxy=synth_proxy,
         opt_cfg={
             "optimizer_kwargs": {"lr": 1e-3, "betas": (0.9, 0.999), "eps": 1e-08, "weight_decay": 0.2},
-            "num_warmup_steps": (101 if SYNTH == "diva" else 101) * 5,
+            "num_warmup_steps": (101 if SYNTH == "diva" else 345) * 5,
         },
     )
 
@@ -319,7 +406,7 @@ if __name__ == "__main__":
             default_root_dir=Path(__file__).parent,
             enable_checkpointing=False,
             callbacks=[LearningRateMonitor(logging_interval="step")],
-            log_every_n_steps=1,
+            log_every_n_steps=50,
         )
 
     trainer.fit(model, dataloader_train, dataloader_val)

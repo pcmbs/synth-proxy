@@ -122,7 +122,7 @@ def objective(trial: optuna.trial.Trial, cfg: DictConfig, is_startup: bool) -> f
         opt_cfg=opt_cfg,
         synth_proxy=synth_proxy,
         label_smoothing=hps.get("label_smoothing", 0.0),
-        cat_loss_weight=cfg.get("cat_loss_weight", 1.0),
+        lw_cat=cfg.get("lw_cat", 1.0),
     )
 
     # instantiate logger
@@ -133,6 +133,7 @@ def objective(trial: optuna.trial.Trial, cfg: DictConfig, is_startup: bool) -> f
     SLURMEnvironment.detect = lambda: False
     trainer = Trainer(
         max_epochs=cfg.trainer.max_epochs,
+        accelerator=cfg.trainer.accelerator,
         logger=logger,
         enable_checkpointing=False,
         enable_model_summary=False,
@@ -142,8 +143,14 @@ def objective(trial: optuna.trial.Trial, cfg: DictConfig, is_startup: bool) -> f
         log_every_n_steps=cfg.trainer.log_every_n_steps,
     )
 
-    # Train for one epoch
-    trainer.fit(model, train_dataloaders=loader_train, val_dataloaders=loader_val)
+    if cfg.get("profile_memory"):
+        with torch.profiler.profile(
+            activities=[torch.profiler.ProfilerActivity.CPU], profile_memory=True, record_shapes=True
+        ) as p:
+            trainer.fit(model, train_dataloaders=loader_train, val_dataloaders=loader_val)
+        log.info(p.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))
+    else:
+        trainer.fit(model, train_dataloaders=loader_train, val_dataloaders=loader_val)
 
     # get metric to optimize's value
     metric_value = trainer.callback_metrics[cfg.metric_to_optimize].item()
@@ -236,6 +243,7 @@ def hpo(cfg: DictConfig) -> None:
         study.optimize(
             lambda trial: objective(trial, cfg, is_startup=True),
             n_trials=num_startup_trials - len(study.trials),
+            gc_after_trial=True,
         )
         if not is_interrupted:
             log.info("Startup trials finished.")
@@ -256,22 +264,24 @@ def hpo(cfg: DictConfig) -> None:
         study.optimize(
             lambda trial: objective(trial, cfg, is_startup=False),
             n_trials=cfg.num_trials - len(study.trials),
+            gc_after_trial=True,
         )
 
     log.info(f"Number of finished trials: {len(study.trials)}")
 
-    log.info("Best trial:")
-    trial = study.best_trial
-    log.info(f" Value: {trial.value}")
+    if not cfg.get("profile_memory"):
+        log.info("Best trial:")
+        trial = study.best_trial
+        log.info(f" Value: {trial.value}")
 
-    log.info(" Params: ")
-    for key, value in trial.params.items():
-        log.info(f"  {key}: {value}")
+        log.info(" Params: ")
+        for key, value in trial.params.items():
+            log.info(f"  {key}: {value}")
 
-    # Save the sampler to be loaded later if needed.
-    log.info("Saving sampler...")
-    with open("optuna_sampler.pkl", "wb") as f:
-        torch.save(study.sampler, f)
+        # Save the sampler to be loaded later if needed.
+        log.info("Saving sampler...")
+        with open("optuna_sampler.pkl", "wb") as f:
+            torch.save(study.sampler, f)
 
 
 if __name__ == "__main__":

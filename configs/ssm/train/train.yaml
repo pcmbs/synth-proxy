@@ -3,9 +3,10 @@
 defaults:
   - _self_
   - synth: diva
-  - settings: defaults
+  - settings: default
   - loss_sch: ???
 
+# see synth configs for synth specific HPs and configs
 
 ######################################
 ############ Main Configs ############
@@ -17,17 +18,12 @@ tag: ???
 #dataset to use for finetuning
 dataset_name: mn20_hc_v1
 
-# step number at which the linear schedule start for both loss
-# total_num_steps = num_epochs * dataset_size // batch_size
-# to follow SSSSM-DDSP paper, should be num_steps // 8
-start: 0
-
-# how long should the linear schedule last
-# to follow SSSSM-DDSP paper, should be num_steps // 2 - start
-warm: 0
-
 # batch size for the train and val dataloaders
 batch_size: 64
+
+# scaling factor for the cat loss (in parameter loss)
+# since way bigger than the rest
+lw_cat: 0.01
 
 # number of epochs
 trainer:
@@ -38,17 +34,12 @@ trainer:
   devices: 1
   default_root_dir: ${paths.output_dir}
 
-# activate SLURMEnvironment auto requeue 
-slurm:
-  auto_requeue: True
-
 # for resuming tranining
 ckpt_path: null
 
 ##########################################
 ############ Lightning Module ############
 ##########################################
-# see synth configs for optimizer kwargs
 optimizer:
   scheduler_kwargs:
     factor: 0.5

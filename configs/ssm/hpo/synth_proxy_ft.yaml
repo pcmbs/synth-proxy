@@ -3,7 +3,7 @@
 defaults:
   - _self_
   - synth: ???
-  - settings: defaults
+  - settings: default
 
 ######################################
 ############ Main Configs ############

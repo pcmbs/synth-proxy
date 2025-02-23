@@ -7,7 +7,7 @@ synth: dexed
 path_to_ckpt: ${paths.root_dir}/checkpoints/dexed_tfm_mn20_mel_e59_loss0.0217.ckpt
 
   # number of linear LR warmup steps
-  # Diva: len(train_dataset) is 22116 if [0.8,0.2] is used (and overall train split) 
+  # Dexed: len(train_dataset) is 22116 if [0.8,0.2] is used (and overall train split) 
   #       hence, one epoch at batch_size=64 is 6482//64 101
 search_space:
   num_warmup_steps:

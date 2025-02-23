@@ -3,7 +3,7 @@
 defaults:
   - _self_
   - synth: ???
-  - settings: defaults
+  - settings: default
 
 ######################################
 ############ Main Configs ############
@@ -13,14 +13,14 @@ defaults:
 dataset_name: mn20_hc_v1
 
 # tag for the current study and log folders
-tag: ???
+tag: loss_p
 
 # whether to use the perceptual loss or parameter loss only
 has_perceptual_loss: false
 
 # scaling factor for the cat loss (in parameter loss)
 # since way bigger than the rest
-cat_loss_weight: 0.01
+lw_cat: 0.01
 
 # random seed for reproducibility
 seed: 42
@@ -32,6 +32,7 @@ batch_size: 64
 trainer:
   max_epochs: 100
   log_every_n_steps: 50
+  accelerator: gpu
 
 # number of trials to run
 # the number of TPE trials is num_trials-sampler.num_startup_trials
@@ -44,10 +45,6 @@ num_startup_trials: 36
 # This is required for the estimator network but not for the synth proxy 
 dataset:
   has_mel: true
-
-# Load the synth proxy finetuned model (only effective if has_perceptual_loss=True)
-synth:
-  path_to_ckpt: ${paths.root_dir}/checkpoints/${synth.name}_tfm_mn20_hc_v1_ft.ckpt
 
 ######################################
 ############ Search space ############
@@ -99,22 +96,11 @@ search_space:
       high: 10.0
       log: true
 
-  # number of linear LR warmup steps
-  # Diva: len(train_dataset) is 6482 if [0.8,0.2] is used (and overall train split) 
-  #       hence, one epoch at batch_size=64 is 6482//64 101
-  num_warmup_steps:
-    type: int
-    kwargs:
-      name: num_warmup_steps
-      low: 101
-      high: 1010
-      step: 101
-
   # for parameter loss, categorical parameters
   label_smoothing:
     type: float
     kwargs:
       name: label_smoothing
       low: 0.0
-      high: 0.5
+      high: 0.25
       step: 0.01

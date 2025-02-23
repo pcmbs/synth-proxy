@@ -8,24 +8,24 @@ path_to_ckpt: ${paths.root_dir}/checkpoints/diva_tfm_mn20_mel_e59.ckpt
 
 optimizer:
   optimizer_kwargs:
-    lr: 3e-4
+    lr: 3e-4 # todo: take from HPO
     betas:
-      - 0.91
-      - 0.98
-    eps: 1e-7
-    weight_decay: 0.3
-  num_warmup_steps: 1080
+      - 0.91 # todo: take from HPO
+      - 0.98 # todo: take from HPO
+    eps: 1e-7 # todo: take from HPO
+    weight_decay: 0.3 # todo: take from HPO
+  num_warmup_steps: 1080 # todo: take from HPO
 
-label_smoothing: 0.01
+label_smoothing: 0.01 # todo: take from HPO
 
-# diva: len(train_dataset)= 7721 if [0.8, 0.1, 0.1] split is used
+# dexed: len(train_dataset) is 22116
 
 # step number at which the linear schedule start for both loss
 # total_num_steps = num_epochs * dataset_size // batch_size
 # to follow SSSSM-DDSP paper, should be num_steps // 8
-# for diva we have: 400 * 7721 // 64 = 48256; 48256 // 8 = 6032
-start: 6032
+# for dexed we have: 400 * 22116 // 64 = 138225; 138225 // 8 = 17278
+start: 17278
 
 # how long should the linear schedule last
 # to follow SSSSM-DDSP paper, should be num_steps // 2 - start
-warm: 18096
+warm: 51834
