@@ -2,7 +2,7 @@
 
 defaults:
   - _self_
-  - synth: diva
+  - synth: ???
   - settings: default
   - loss_sch: ???
 
@@ -12,8 +12,8 @@ defaults:
 ############ Main Configs ############
 ######################################
 
-# tag to identify the run
-tag: ???
+# tag to identify the run (overwritten in loss_sch config)
+tag: ${loss_sch.name}
 
 #dataset to use for finetuning
 dataset_name: mn20_hc_v1
@@ -27,15 +27,24 @@ lw_cat: 0.01
 
 # number of epochs
 trainer:
-  max_epochs: 250
+  max_epochs: 400
   log_every_n_steps: 50
   deterministic: True
   accelerator: gpu
   devices: 1
   default_root_dir: ${paths.output_dir}
+  check_val_every_n_epoch: 10 # rendering audio takes time 
+
+# whether or not to compute audio-based metrics during validation
+compute_a_metrics: true
+
+slurm:
+  auto_requeue: true
 
 # for resuming tranining
 ckpt_path: null
+run_id: null
+
 
 ##########################################
 ############ Lightning Module ############
@@ -43,7 +52,7 @@ ckpt_path: null
 optimizer:
   scheduler_kwargs:
     factor: 0.5
-    patience: 10
+    patience: 1 # correspoinds to 10 epochs since we run the validation epoch once every 10 training epochs
 
 wandb_watch_args:
   log: null

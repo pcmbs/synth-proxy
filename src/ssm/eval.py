@@ -7,17 +7,16 @@ Adapted from https://github.com/ashleve/lightning-hydra-template/blob/main/src/t
 See configs/ssm/train for more details.
 """
 import os
-from pathlib import Path
-from typing import Any, Dict, List
+import pickle
+from typing import Any, Dict
 
 import hydra
 import lightning as L
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, random_split
-from lightning import Callback, Trainer
+from torch.utils.data import DataLoader
+from lightning import Trainer
 from lightning.pytorch.loggers import Logger
-from lightning.pytorch.plugins.environments import SLURMEnvironment
 from lightning.pytorch.loggers.wandb import WandbLogger
 from omegaconf import DictConfig
 import wandb
@@ -26,7 +25,6 @@ from data.datasets import SynthDatasetPkl
 from ssm.estimator_network import EstimatorNet
 from ssm.litm_ssm import SSMLitModule
 from utils.logging import RankedLogger
-from utils.instantiators import instantiate_callbacks
 from utils.synth.preset_helper import PresetHelper
 
 # logger for this file
@@ -48,14 +46,8 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
 
     log.info(f"Instantiating training Dataset: {cfg.dataset_name}")
     # instantiate train Dataset & DataLoader
-    dataset = SynthDatasetPkl(**cfg.dataset)
-    dataset_train, dataset_val = random_split(dataset, cfg.train_val_split)
-    loader_train = DataLoader(
-        dataset_train, batch_size=cfg.batch_size, shuffle=True, num_workers=cfg.num_workers
-    )
-    loader_val = DataLoader(
-        dataset_val, batch_size=cfg.batch_size, shuffle=False, num_workers=cfg.num_workers
-    )
+    dataset = SynthDatasetPkl(path_to_dataset=cfg.dataset.path_to_dataset, has_mel=True, split="test")
+    loader = DataLoader(dataset, batch_size=cfg.batch_size, shuffle=True, num_workers=0)
 
     log.info(f"Instantiating Preset Helper for synth {dataset.synth_name} and excluded params:")
     log.info(f"{dataset.configs_dict['params_to_exclude']}")
@@ -89,33 +81,18 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
         label_smoothing=cfg.label_smoothing,
         lw_cat=cfg.lw_cat,
         wandb_watch_args=cfg.wandb_watch_args,
+        test_batch_to_export=cfg.batch_to_export,
     )
-
-    log.info("Instantiating Callbacks...")
-    callbacks: List[Callback] | None = instantiate_callbacks(cfg.get("callbacks"))
 
     logger: Logger | None = None
     if cfg.get("wandb"):
         log.info("Instantiating wandb logger...")
         logger = WandbLogger(**cfg.wandb)
 
-    slurm_job_id = os.environ.get("SLURM_JOB_ID")
-    if slurm_job_id:
-        log.info(
-            f"Detected SLURM environment with SLURM job id {slurm_job_id}, activating Lightning SLURM plugin..."
-        )
-        slurm_plugin = SLURMEnvironment(auto_requeue=False)  # auto-requeue managed independently
-        slurm_job_id = int(slurm_job_id)
-    else:
-        log.info("No SLURM environment detected, deactivating Lightning SLURM plugin...")
-        slurm_plugin = None
-
     log.info("Instantiating Lightning Trainer...")
     trainer = Trainer(
         **cfg.trainer,
-        callbacks=callbacks,
         logger=logger,
-        plugins=slurm_plugin,
     )
 
     if logger:
@@ -132,7 +109,8 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
             },
             "model": {
                 "synth_proxy": cfg.synth_proxy._target_,
-                "ckpt_name": cfg.path_to_ckpt.split("/")[-1],
+                "synth_proxy_ckpt": cfg.path_to_ckpt.split("/")[-1],
+                "estimator_ckpt": cfg.train_ckpt,
             },
             "losses": {
                 "lw_cat": cfg.lw_cat,
@@ -153,32 +131,13 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
         }
         trainer.logger.log_hyperparams(object_dict)
 
-    # save hydra run dir and wandb run id to resume training on SLURM environment if requested.
-    if slurm_job_id and logger and cfg.slurm.get("auto_requeue"):
-        log.info(
-            f"Job auto-requeue is enabled, writing environment variables to workspace/logs/{slurm_job_id}.sh to resume training..."
-        )
-        hydra_run_dir = hydra.core.hydra_config.HydraConfig.get()["runtime"]["output_dir"]
-        wandb_run_id = logger.version
+    ckpt_path = cfg.get("path_to_train_ckpt")
+    log.info(f"Starting evaluation from checkpoint: {ckpt_path}.")
+    log.info(f"Audio files will be exported to {cfg.trainer.default_root_dir}.")
 
-        log.info(f"HYDRA_RUN_DIR={hydra_run_dir}")
-        log.info(f"WANDB_RUN_ID={wandb_run_id}")
-
-        env_file_path = Path(os.environ["PROJECT_ROOT"]) / "logs" / f"{slurm_job_id}.sh"
-        with open(env_file_path, "w", encoding="utf-8") as env_file:
-            env_file.write(f"export HYDRA_RUN_DIR={hydra_run_dir}\n")
-            env_file.write(f"export WANDB_RUN_ID={wandb_run_id}\n")
-
-    ckpt_path = cfg.get("ckpt_path")
-    if ckpt_path:
-        log.info(f"Resuming training from {ckpt_path}...")
-    else:
-        log.info("Starting training...")
-
-    trainer.fit(
+    trainer.test(
         model=model,
-        train_dataloaders=loader_train,
-        val_dataloaders=loader_val,
+        dataloaders=loader,
         ckpt_path=ckpt_path,
     )
 
@@ -197,7 +156,7 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
     return metrics_dict, object_dict
 
 
-@hydra.main(version_base="1.3", config_path="../../configs/ssm/train", config_name="train.yaml")
+@hydra.main(version_base="1.3", config_path="../../configs/ssm/train", config_name="eval.yaml")
 def main(cfg: DictConfig) -> None:
     """
     Main entry point for training.
@@ -207,11 +166,15 @@ def main(cfg: DictConfig) -> None:
 
     log.info(f"Metrics: {metrics_dict}")
 
+    # dump metrics to pickle
+    with open(os.path.join(cfg.paths.output_dir, "metrics.pkl"), "wb") as f:
+        pickle.dump(metrics_dict, f)
+
 
 if __name__ == "__main__":
     import sys
 
-    args = ["src/ssm/train.py", "settings=debug", "loss_sch=switch_a_p"]
+    args = ["src/ssm/eval.py", "settings=debug", "synth=diva", "loss_sch=loss_a_only"]
 
     gettrace = getattr(sys, "gettrace", None)
     if gettrace():

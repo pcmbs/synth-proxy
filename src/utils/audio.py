@@ -4,7 +4,9 @@ Audio helper functions
 """
 from typing import Optional
 import torch
+import torch.nn.functional as F
 import torchaudio
+import torchaudio.functional as Fa
 from torch import nn
 
 
@@ -85,26 +87,28 @@ class MelSTFT(nn.Module):
 if __name__ == "__main__":
     import itertools
 
-    N_SAMPLES = 30_000
-    LENGTH = 5
-    SR = 44_100
-    MEL = [64, 128, 256]
-    STFT_WIN = [512, 1024, 2048]
+    MEL_CFG = {
+        "num_samples": 30_000,
+        "length": 5,
+        "sr": 44_100,
+        "num_bins": [64, 128, 256],
+        "stft_win": [512, 1024, 2048],
+    }
 
-    cfg = itertools.product(MEL, STFT_WIN)
+    cfg = itertools.product(MEL_CFG["num_bins"], MEL_CFG["stft_win"])
 
-    print(f" \nResults for {N_SAMPLES} samples of {LENGTH} secs @ {SR} Hz")
+    print(f" \nResults for {MEL_CFG['num_samples']} samples of {MEL_CFG['length']} secs @ {MEL_CFG['sr']} Hz")
     for m, w in cfg:
         h = w // 2
-        mel = MelSTFT(n_mels=m, win_length=w, hop_length=h, sr=SR, fmax=SR // 2)
-        x = torch.empty((1, SR * LENGTH)).uniform_(-1, 1)
+        mel = MelSTFT(n_mels=m, win_length=w, hop_length=h, sr=MEL_CFG["sr"], fmax=MEL_CFG["sr"] // 2)
+        x = torch.empty((1, MEL_CFG["sr"] * MEL_CFG["length"])).uniform_(-1, 1)
         try:
             specgram = mel(x)
         except RuntimeError:
             print(f"\nError with mel={m}, win={w}, hop={h}")
             continue
 
-        size_in_gb = N_SAMPLES * specgram.nelement() * specgram.element_size() * 1e-9
+        size_in_gb = MEL_CFG["num_samples"] * specgram.nelement() * specgram.element_size() * 1e-9
         print(f"\nResults for mel={m}, win={w}, hop={h} ({size_in_gb:.2f} GB):")
 
         print(f"    mel shape: {specgram.shape}")

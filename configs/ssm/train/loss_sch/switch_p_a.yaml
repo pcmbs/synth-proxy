@@ -1,4 +1,4 @@
-# swtich from parameter loss to audio embedding loss
+# switch from parameter loss to audio embedding loss
 param:
   start: ${start}
   warm: ${warm}
@@ -10,3 +10,5 @@ perc:
   warm: ${warm}
   start_value: 0.0
   end_value: 1.0
+
+name: switch_p_a

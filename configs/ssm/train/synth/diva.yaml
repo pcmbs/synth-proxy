@@ -4,7 +4,7 @@
 synth: diva
 
 # path to the checkpoint to load for the synth proxy
-path_to_ckpt: ${paths.root_dir}/checkpoints/diva_tfm_mn20_mel_e59.ckpt
+path_to_ckpt: ${paths.root_dir}/checkpoints/diva_tfm_mn20_hc_v1_ft_e50_loss0.0379.ckpt
 
 optimizer:
   optimizer_kwargs:

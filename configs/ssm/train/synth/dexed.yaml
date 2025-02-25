@@ -1,22 +1,22 @@
 # @package _global_
 
 # synthesizer to use
-synth: diva
+synth: dexed
 
 # path to the checkpoint to load for the synth proxy
-path_to_ckpt: ${paths.root_dir}/checkpoints/diva_tfm_mn20_mel_e59.ckpt
+path_to_ckpt: ${paths.root_dir}/checkpoints/dexed_tfm_mn20_hc_v1_ft_e230_loss0.0201.ckpt
 
 optimizer:
   optimizer_kwargs:
-    lr: 3e-4 # todo: take from HPO
+    lr: 7e-3
     betas:
-      - 0.91 # todo: take from HPO
-      - 0.98 # todo: take from HPO
-    eps: 1e-7 # todo: take from HPO
-    weight_decay: 0.3 # todo: take from HPO
-  num_warmup_steps: 1080 # todo: take from HPO
+      - 0.86
+      - 0.98
+    eps: 1e-8
+    weight_decay: 0.01
+  num_warmup_steps: 2070 # 6 epochs
 
-label_smoothing: 0.01 # todo: take from HPO
+label_smoothing: 0.02
 
 # dexed: len(train_dataset) is 22116
 

@@ -10,6 +10,8 @@ The sequence specific to a synthesizer can be found in `./src/data/synths/<synth
 """
 
 from typing import List, Sequence, Tuple
+
+import torch
 import data.synths
 
 
@@ -64,6 +66,9 @@ class PresetHelper:
         self._used_num_parameters_idx = [p[0] for p in self._used_parameters_descr if p[3] == "num"]
         self._used_bin_parameters_idx = [p[0] for p in self._used_parameters_descr if p[3] == "bin"]
         self._used_cat_parameters_idx = [p[0] for p in self._used_parameters_descr if p[3] == "cat"]
+        self._has_num_parameters = len(self._used_num_parameters_idx) > 0
+        self._has_bin_parameters = len(self._used_bin_parameters_idx) > 0
+        self._has_cat_parameters = len(self._used_cat_parameters_idx) > 0
         self._used_noncat_parameters_idx = sorted(
             self._used_num_parameters_idx + self._used_bin_parameters_idx
         )
@@ -174,6 +179,21 @@ class PresetHelper:
         to vary across training samples and are thus inputs to the preset encoder.
         """
         return self._used_bin_parameters_idx
+
+    @property
+    def has_num_parameters(self) -> bool:
+        """Return True if the synthesizer has at least one numerical parameter."""
+        return self._has_num_parameters
+
+    @property
+    def has_bin_parameters(self) -> bool:
+        """Return True if the synthesizer has at least one binary parameter."""
+        return self._has_bin_parameters
+
+    @property
+    def has_cat_parameters(self) -> bool:
+        """Return True if the synthesizer has at least one categorical parameter."""
+        return self._has_cat_parameters
 
     @property
     def grouped_used_parameters(self) -> dict:
@@ -302,7 +322,7 @@ if __name__ == "__main__":
             "vca:offset",
         )
 
-    elif SYNTH == "dexed":
+    else:  # SYNTH == "dexed"
         PARAMETERS_TO_EXCLUDE_STR = (
             "cutoff",
             "resonance",

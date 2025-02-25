@@ -4,7 +4,7 @@
 Training script.
 Adapted from https://github.com/ashleve/lightning-hydra-template/blob/main/src/train.py
 
-See configs/ssm_eval/synth_proxy_ft for more details.
+See configs/ssm/finetune/synth_proxy_ft for more details.
 """
 import os
 from pathlib import Path
@@ -109,19 +109,19 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
     if logger:
         log.info("Logging hyperparameters...")
         object_dict = {
-            "data.dataset": cfg.dataset_name,
-            "data.train_val_split": cfg.train_val_split,
-            "data.batch_size": cfg.batch_size,
-            "misc.seed": cfg.seed,
-            "misc.synth": cfg.synth,
-            "model.synth_proxy": cfg.synth_proxy._target_,
-            "model.ckpt_name": cfg.path_to_ckpt.split("/")[-1],
-            "opt.lr": cfg.optimizer.optimizer_kwargs.lr,
-            "opt.betas": cfg.optimizer.optimizer_kwargs.betas,
-            "opt.eps": cfg.optimizer.optimizer_kwargs.eps,
-            "opt.weight_decay": cfg.optimizer.optimizer_kwargs.weight_decay,
-            "opt.num_warmup_steps": cfg.optimizer.num_warmup_steps,
-            "trainer.max_epochs": cfg.trainer.max_epochs,
+            "data/dataset": cfg.dataset_name,
+            "data/train_val_split": cfg.train_val_split,
+            "data/batch_size": cfg.batch_size,
+            "misc/seed": cfg.seed,
+            "misc/synth": cfg.synth,
+            "model/synth_proxy": cfg.synth_proxy._target_,
+            "model/ckpt_name": cfg.path_to_ckpt.split("/")[-1],
+            "opt/lr": cfg.optimizer.optimizer_kwargs.lr,
+            "opt/betas": cfg.optimizer.optimizer_kwargs.betas,
+            "opt/eps": cfg.optimizer.optimizer_kwargs.eps,
+            "opt/weight_decay": cfg.optimizer.optimizer_kwargs.weight_decay,
+            "opt/num_warmup_steps": cfg.optimizer.num_warmup_steps,
+            "trainer/max_epochs": cfg.trainer.max_epochs,
         }
         trainer.logger.log_hyperparams(object_dict)
 
@@ -183,7 +183,7 @@ def main(cfg: DictConfig) -> None:
 if __name__ == "__main__":
     import sys
 
-    args = ["src/ssm_eval/synth_proxy_ft.py", "wandb=None", "trainer.accelerator=cpu"]
+    args = ["src/ssm/synth_proxy_ft.py", "wandb=None", "trainer.accelerator=cpu"]
 
     gettrace = getattr(sys, "gettrace", None)
     if gettrace():

@@ -13,6 +13,8 @@ from .ranked_logger import RankedLogger
 
 log = RankedLogger(__name__, rank_zero_only=True)
 
+# FIXME: pass instead of keys with "/" for wandb
+
 
 @rank_zero_only
 def log_hyperparameters(object_dict: Dict[str, Any]) -> None:

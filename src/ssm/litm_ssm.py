@@ -1,5 +1,10 @@
+from functools import partial
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
+import os
+import sys
+
+from auraloss.freq import STFTLoss, MelSTFTLoss, MultiResolutionSTFTLoss
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -7,10 +12,12 @@ from lightning import LightningModule
 from lightning.pytorch.loggers.wandb import WandbLogger
 from torchmetrics.classification import BinaryAccuracy, MulticlassAccuracy
 from optuna.trial import Trial
+from scipy.io import wavfile
 
 from ssm.loss_scheduler import LossScheduler, NopScheduler
 from utils.logging import RankedLogger
-from utils.synth import PresetHelper
+from utils.synth import PresetHelper, PresetRenderer
+from utils.evaluation import MFCCDist
 
 log = RankedLogger(__name__, rank_zero_only=True)
 
@@ -23,9 +30,11 @@ class SSMLitModule(LightningModule):
         opt_cfg: Dict[str, Any],
         loss_sch_cfg: Optional[Dict[str, Any]] = None,
         synth_proxy: Optional[nn.Module] = None,
+        compute_a_metrics: bool = True,
         label_smoothing: float = 0.0,
-        lw_cat: float = 1.0,
+        lw_cat: float = 0.01,
         wandb_watch_args: Optional[Dict[str, Any]] = None,
+        test_batch_to_export: int = 0,
         trial: Optional[Trial] = None,
     ):
         super().__init__()
@@ -36,47 +45,72 @@ class SSMLitModule(LightningModule):
         self.lr = opt_cfg["optimizer_kwargs"]["lr"]
         self.num_warmup_steps = int(opt_cfg["num_warmup_steps"])
         self.wandb_watch_args = wandb_watch_args
-        self.trial = trial
+        self.trial = trial  # for optuna
+        self.test_batch_to_export = test_batch_to_export  # export to audio
 
         # activates manual optimization.
         self.automatic_optimization = False
 
         # parameter loss
-        self.num_loss_fn = nn.L1Loss()
-        self.cat_loss_fn = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
-        self.bin_loss_fn = nn.BCEWithLogitsLoss()
-        self.label_smoothing = label_smoothing
+        self.losses_fn = {
+            "num": nn.L1Loss(),
+            "cat": nn.CrossEntropyLoss(label_smoothing=label_smoothing),
+            "bin": nn.BCEWithLogitsLoss(),
+            "perc": nn.L1Loss(),
+        }
+
         self.lw_cat = lw_cat
 
-        # perceptual loss
-        self.perceptual_loss_fn = nn.L1Loss()
-
         # loss scheduler
-        self.loss_sch_cfg = loss_sch_cfg
+        self.loss_sch = {}
         if loss_sch_cfg is not None:
-            self.loss_scheduler = LossScheduler(**loss_sch_cfg)  # TODO: finish implementing that
-            self.param_sch, self.perc_sch = self.loss_scheduler.get_schedules()
+            self.loss_sch["param"], self.loss_sch["perc"] = LossScheduler(loss_sch_cfg).get_schedules()
         else:
-            self.param_sch, self.perc_sch = NopScheduler(1.0), NopScheduler(1.0)
-        self.last_lw_a = 1.0
-        self.last_lw_p = 1.0
+            self.loss_sch["param"], self.loss_sch["perc"] = NopScheduler(1.0), NopScheduler(1.0)
 
         # set synth proxy to None if only parameter loss
-        if isinstance(self.perc_sch, NopScheduler):
-            if self.perc_sch.value == 0.0:
+        if isinstance(self.loss_sch["perc"], NopScheduler):
+            if self.loss_sch["perc"].value == 0.0:
                 self.synth_proxy = None
 
         # synthesizer parameter indices
         pred_idx, target_idx = self._initialize_synth_parameters_idx()
-        self.num_idx_pred, self.cat_idx_pred, self.bin_idx_pred = pred_idx
-        self.num_idx_target, self.cat_idx_target, self.bin_idx_target = target_idx
-        self.has_num_params = len(self.num_idx_target) > 0
-        self.has_cat_params = len(self.cat_idx_target) > 0
-        self.has_bin_params = len(self.bin_idx_target) > 0
+        self.params_idx = {
+            "pred": {"num": pred_idx[0], "cat": pred_idx[1], "bin": pred_idx[2]},
+            "target": {"num": target_idx[0], "cat": target_idx[1], "bin": target_idx[2]},
+        }
 
         # validation and test metrics
-        self.bin_acc = BinaryAccuracy()
-        self.cat_acc = MulticlassAccuracy(num_classes=max(len(t) for t in self.cat_idx_pred))
+        self.p_metrics = {
+            "num_mae": nn.L1Loss(),
+            "bin_acc": BinaryAccuracy(),
+            "cat_acc": MulticlassAccuracy(num_classes=max(len(t) for t in self.params_idx["pred"]["cat"])),
+        }
+
+        self.a_metrics = {
+            "stft": STFTLoss(w_log_mag=1.0, w_sc=1.0, w_lin_mag=0.0, mag_distance="L1", output="loss"),
+            "mstft": MultiResolutionSTFTLoss(
+                w_sc=1.0, w_log_mag=1.0, w_lin_mag=0.0, mag_distance="L1", output="loss"
+            ),
+            "mel": partial(  # pass sample rate when getting dataset_cfg
+                MelSTFTLoss,
+                w_log_mag=1.0,
+                w_sc=1.0,
+                w_lin_mag=0.0,
+                n_mels=128,
+                mag_distance="L1",
+                output="loss",
+            ),
+            "mfccd": partial(  # pass sample rate when getting dataset_cfg
+                MFCCDist, n_mels=128, n_mfcc=40, distance="L1"
+            ),
+        }
+        # whether or not to compute audio-based metrics during validation
+        self.compute_a_metrics = compute_a_metrics
+
+        # Preset renderer
+        self.dataset_cfg = None
+        self.renderer = None
 
     def _initialize_synth_parameters_idx(self):
         # index of parameters per type in the target vector
@@ -106,52 +140,60 @@ class SSMLitModule(LightningModule):
         bin_idx_pred = torch.tensor(bin_idx_pred, dtype=torch.long)
         return (num_idx_pred, cat_idx_pred, bin_idx_pred), (num_idx_target, cat_idx_target, bin_idx_target)
 
-    def decode_presets(self, pred: torch.Tensor):
-        presets = torch.zeros(pred.shape[0], self.p_helper.num_used_parameters, device=pred.device)
+    def decode_presets(self, x: torch.Tensor):
+        presets = torch.zeros(x.shape[0], self.p_helper.num_used_parameters, device=x.device)
 
         # Pass the predictions through sigmoid for numerical parameters since in [0, 1]
-        if self.has_num_params:
-            presets[:, self.num_idx_target] = F.sigmoid(pred[:, self.num_idx_pred])
+        if self.p_helper.has_num_parameters:
+            presets[:, self.params_idx["target"]["num"]] = F.sigmoid(x[:, self.params_idx["pred"]["num"]])
 
         # 0 or 1 for binary parameters (discrimination threshold at 0.5)
-        if self.has_bin_params:
-            presets[:, self.bin_idx_target] = F.sigmoid(pred[:, self.bin_idx_pred]).round()
+        if self.p_helper.has_bin_parameters:
+            presets[:, self.params_idx["target"]["bin"]] = F.sigmoid(
+                x[:, self.params_idx["pred"]["bin"]]
+            ).round()
 
         # argmax for categorical parameters
-        if not self.has_cat_params:
-            for i, j in zip(self.cat_idx_pred, self.cat_idx_target):
+        if self.p_helper.has_cat_parameters:
+            for i, j in zip(self.params_idx["pred"]["cat"], self.params_idx["target"]["cat"]):
                 # pred[:, i] = F.softmax(pred[:, i], dim=1)
-                presets[:, j] = torch.argmax(pred[:, i], dim=1)
+                presets[:, j] = torch.argmax(x[:, i], dim=1)
 
         return presets
 
     def parameter_loss_fn(
         self, pred: torch.Tensor, target: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        # compute the loss for each type of parameter or return 0 if the current synthesizer does not possess that parameter type
+        # compute the loss for each type of parameter or return 0
+        # if the current synthesizer does not possess that parameter type
 
         # regression loss for numerical parameters (pass through sigmoid first since in [0, 1])
-        if self.has_num_params:
-            loss_num = self.num_loss_fn(F.sigmoid(pred[:, self.num_idx_pred]), target[:, self.num_idx_target])
+        if self.p_helper.has_num_parameters:
+            loss_num = self.losses_fn["num"](
+                F.sigmoid(pred[:, self.params_idx["pred"]["num"]]),
+                target[:, self.params_idx["target"]["num"]],
+            )
         else:
-            loss_num = 0.0
+            loss_num = torch.tensor(0.0)
 
         # binary loss for binary parameters
-        if self.has_bin_params:
-            loss_bin = self.bin_loss_fn(pred[:, self.bin_idx_pred], target[:, self.bin_idx_target])
+        if self.p_helper.has_bin_parameters:
+            loss_bin = self.losses_fn["bin"](
+                pred[:, self.params_idx["pred"]["bin"]], target[:, self.params_idx["target"]["bin"]]
+            )
         else:
-            loss_bin = 0.0
+            loss_bin = torch.tensor(0.0)
 
         # categorical loss for categorical parameters
-        if self.has_cat_params:
+        if self.p_helper.has_cat_parameters:
             loss_cat = sum(
                 [
-                    self.cat_loss_fn(pred[:, i], target[:, j].to(dtype=torch.long))
-                    for i, j in zip(self.cat_idx_pred, self.cat_idx_target)
+                    self.losses_fn["cat"](pred[:, i], target[:, j].to(dtype=torch.long))
+                    for i, j in zip(self.params_idx["pred"]["cat"], self.params_idx["target"]["cat"])
                 ]
             )
         else:
-            loss_cat = 0.0
+            loss_cat = torch.tensor(0.0)
 
         return loss_num, loss_bin, loss_cat
 
@@ -164,15 +206,15 @@ class SSMLitModule(LightningModule):
         p_hat = self.estimator(m)
         loss_num, loss_bin, loss_cat = self.parameter_loss_fn(p_hat, p)
         loss_cat = loss_cat * self.lw_cat
-        lw_p = self.param_sch(self.trainer.global_step)
+        lw_p = self.loss_sch["param"](self.trainer.global_step)
         loss_p = (loss_num + loss_bin + loss_cat) * lw_p
 
         # perceptual loss
         if callable(self.synth_proxy):
             presets_hat = self.decode_presets(p_hat)  # probabilities -> presets
             a_hat = self.synth_proxy(presets_hat)
-            lw_a = self.perc_sch(self.trainer.global_step)
-            loss_a = self.perceptual_loss_fn(a_hat, a) * lw_a
+            lw_a = self.loss_sch["perc"](self.trainer.global_step)
+            loss_a = self.losses_fn["perc"](a_hat, a) * lw_a
         else:
             loss_a = 0.0
 
@@ -190,89 +232,171 @@ class SSMLitModule(LightningModule):
             for pg in opt.optimizer.param_groups:
                 pg["lr"] = self.lr * lr_scale
 
-        # last param/perc loss weights values for validation epoch
-        self.last_lw_p = lw_p
-        if callable(self.synth_proxy):
-            self.last_lw_a = lw_a
-
         # logging
-        if self.has_num_params:
-            self.log("train/loss_num", loss_num, on_step=True, on_epoch=True)
-        if self.has_bin_params:
-            self.log("train/loss_bin", loss_bin, on_step=True, on_epoch=True)
-        if self.has_cat_params:
-            self.log("train/loss_cat", loss_cat, on_step=True, on_epoch=True)
-        self.log("train/loss_p", loss_p, prog_bar=True, on_step=True, on_epoch=True)
-        self.log("train/loss", loss, prog_bar=True, on_step=True, on_epoch=True)
+        if self.p_helper.has_num_parameters:
+            self.log("train/loss/num", loss_num, on_step=True, on_epoch=True)
+        if self.p_helper.has_bin_parameters:
+            self.log("train/loss/bin", loss_bin, on_step=True, on_epoch=True)
+        if self.p_helper.has_cat_parameters:
+            self.log("train/loss/cat", loss_cat, on_step=True, on_epoch=True)
+        self.log("train/loss/param", loss_p, prog_bar=True, on_step=True, on_epoch=True)
+        self.log("train/loss/total", loss, prog_bar=True, on_step=True, on_epoch=True)
         self.log("lw/param", lw_p, on_step=True, on_epoch=True)
         if callable(self.synth_proxy):
-            self.log("train/loss_a", loss_a, prog_bar=True, on_step=True, on_epoch=True)
+            self.log("train/loss/perc", loss_a, prog_bar=True, on_step=True, on_epoch=True)
             self.log("lw/perc", lw_a, on_step=True, on_epoch=True)
 
     def validation_step(self, batch, batch_idx: int):
         p, a, m = batch  # synth parameters, audio embedding, mel spectrogram
 
+        # Here we do not want to weight the parameter and perceptual losses
+        # to know how it evolves over time depending on the loss schedulers
+
         # parameter loss
         p_hat = self.estimator(m)
         loss_num, loss_bin, loss_cat = self.parameter_loss_fn(p_hat, p)
         loss_cat = loss_cat * self.lw_cat
-        loss_p = (loss_num + loss_bin + loss_cat) * self.last_lw_p
+        loss_p = loss_num + loss_bin + loss_cat
 
         # probabilities -> presets
         # for perceptual loss and accuracy metrics
-        presets_hat = self.decode_presets(p_hat)
+        preset_pred = self.decode_presets(p_hat)
 
         # perceptual loss
         if callable(self.synth_proxy):
-            a_hat = self.synth_proxy(presets_hat)
-            loss_a = self.perceptual_loss_fn(a_hat, a) * self.last_lw_a
+            a_hat = self.synth_proxy(preset_pred)
+            loss_a = self.losses_fn["perc"](a_hat, a)
         else:
-            loss_a = 0.0
+            loss_a = torch.tensor(0.0)
 
         loss = loss_p + loss_a
 
-        # logging
-        if self.has_num_params:
-            self.log("val/loss_num", loss_num, on_step=False, on_epoch=True)
-            # mae_num = []
-            # for i in self.num_idx_target:
-            #     param_name = self.p_helper.used_parameters[i].name
-            #     mae = F.l1_loss(presets_hat[:, i], p[:, i])
-            #     mae_num.append(mae)
-            #     self.log(f"val/num_mae/{param_name}", mae, on_step=False, on_epoch=True)
-            # mae_num = sum(mae_num) / len(mae_num)
+        metrics_dict = {
+            "loss/total": loss.item(),
+            "loss/param": loss_p.item(),
+            "loss/num": loss_num.item(),
+            "loss/perc": loss_a.item(),
+            "loss/bin": loss_bin.item(),
+            "loss/cat": loss_cat.item(),
+        }
 
-        if self.has_bin_params:
-            self.log("val/bin_loss", loss_bin, on_step=False, on_epoch=True)
-            bin_acc = self.bin_acc(presets_hat[:, self.bin_idx_target], p[:, self.bin_idx_target])
-            self.log("val/bin_acc", bin_acc, on_step=False, on_epoch=True)
-            # maybe log accuracy for each bin params only for test set
-            # acc_bin = []
-            # for i in self.bin_idx_target:
-            #     param_name = self.p_helper.used_parameters[i].name
-            #     acc = self.bin_acc(presets_hat[:, i], p[:, i])
-            #     acc_bin.append(acc)
-            #     self.log(f"val/bin_acc/{param_name}", acc, on_step=False, on_epoch=True)
-            # acc_bin = sum(acc_bin) / len(acc_bin)
+        # Compute validation metrics (don't return audio)
+        metrics_dict.update(self._compute_metrics(preset_pred, p))
 
-        if self.has_cat_params:
-            self.log("val/cat_loss", loss_cat, on_step=False, on_epoch=True)
-            cat_acc = self.cat_acc(presets_hat[:, self.cat_idx_target], p[:, self.cat_idx_target])
-            self.log("val/cat_acc", cat_acc, on_step=False, on_epoch=True)
-            # maybe log accuracy for each cat params only for test set
-            # acc_cat = []
-            # for i in self.cat_idx_target:
-            #     param_name = self.p_helper.used_parameters[i].name
-            #     acc = self.cat_acc(presets_hat[:, i], p[:, i])
-            #     acc_cat.append(acc)
-            #     self.log(f"val/cat_acc/{param_name}", acc, on_step=False, on_epoch=True)
-            # acc_cat = sum(acc_cat) / len(acc_cat)
+        # log all metrics
+        for name, val in metrics_dict.items():
+            self.log(f"val/{name}", val, on_step=False, on_epoch=True)
 
-        self.log("val/loss_p", loss_p, on_step=False, on_epoch=True)
-        self.log("val/loss", loss, on_step=False, on_epoch=True)
+    def test_step(self, batch, batch_idx: int):
+        p, a, m = batch  # synth parameters, audio embedding, mel spectrogram
 
+        # Here we do not want to weight the parameter and perceptual losses
+        # to know how it evolves over time depending on the loss schedulers
+
+        # parameter loss
+        p_hat = self.estimator(m)
+        loss_num, loss_bin, loss_cat = self.parameter_loss_fn(p_hat, p)
+        loss_cat = loss_cat * self.lw_cat
+        loss_p = loss_num + loss_bin + loss_cat
+
+        # probabilities -> presets
+        # for perceptual loss and accuracy metrics
+        preset_pred = self.decode_presets(p_hat)
+
+        # perceptual loss
         if callable(self.synth_proxy):
-            self.log("val/loss_a", loss_a, on_step=False, on_epoch=True)
+            a_hat = self.synth_proxy(preset_pred)
+            loss_a = self.losses_fn["perc"](a_hat, a)
+        else:
+            loss_a = torch.tensor(0.0)
+
+        loss = loss_p + loss_a
+
+        metrics_dict = {
+            "loss/total": loss.item(),
+            "loss/param": loss_p.item(),
+            "loss/num": loss_num.item(),
+            "loss/perc": loss_a.item(),
+            "loss/bin": loss_bin.item(),
+            "loss/cat": loss_cat.item(),
+        }
+
+        # Compute validation metrics (return audio)
+        a_metrics, audio = self._compute_metrics(preset_pred, p, return_audio=True)
+        metrics_dict.update(a_metrics)
+
+        if batch_idx < self.test_batch_to_export:
+            self._export_audio(audio, batch_idx)
+
+        # log all metrics
+        for name, val in metrics_dict.items():
+            self.log(f"test/{name}", val, on_step=False, on_epoch=True)
+
+    def _compute_metrics(
+        self, pred: torch.Tensor, target: torch.Tensor, return_audio: bool = False
+    ) -> Dict[str, float]:
+
+        # move metrics to device if necessary
+        device = pred.device
+        for _, fn in self.a_metrics.items():
+            fn.to(device)
+        for _, fn in self.p_metrics.items():
+            fn.to(device)
+
+        idx = self.params_idx["target"]
+        metrics_dict = {}
+        if self.p_helper.has_num_parameters:  # same as the loss
+            metrics_dict["metrics/num_mae"] = self.p_metrics["num_mae"](
+                F.sigmoid(pred[:, idx["num"]]), target[:, idx["num"]]
+            ).item()
+
+        if self.p_helper.has_bin_parameters:
+            metrics_dict["metrics/bin_acc"] = self.p_metrics["bin_acc"](
+                pred[:, idx["bin"]], target[:, idx["bin"]]
+            ).item()
+
+        if self.p_helper.has_cat_parameters:
+            metrics_dict["metrics/cat_acc"] = self.p_metrics["cat_acc"](
+                pred[:, idx["cat"]], target[:, idx["cat"]]
+            ).item()
+
+        if self.compute_a_metrics:
+            audio_pred = []
+            audio_target = []
+            for p, t in zip(pred, target):
+                audio_pred.append(self._render_audio(p))
+                audio_target.append(self._render_audio(t))
+            audio_pred = torch.stack(audio_pred).to(device)
+            audio_target = torch.stack(audio_target).to(device)
+
+            for name, fn in self.a_metrics.items():
+                if name in ["stft", "mstft", "mel"]:  # add channel dim for auraloss
+                    metrics_dict[f"metrics/{name}"] = fn(
+                        audio_pred.unsqueeze(1), audio_target.unsqueeze(1)
+                    ).item()
+                else:
+                    metrics_dict[f"metrics/{name}"] = fn(audio_pred, audio_target).item()
+
+        if return_audio:
+            audio = {"pred": audio_pred, "target": audio_target}
+            return metrics_dict, audio
+
+        return metrics_dict
+
+    def _export_audio(self, audio: Dict[str, torch.Tensor], batch_idx: int) -> None:
+        export_path = Path(self.trainer.log_dir) / "audio"
+        export_path.mkdir(exist_ok=True, parents=True)
+        for i, (pred, target) in enumerate(zip(audio["pred"], audio["target"])):
+            wavfile.write(
+                export_path / f"{batch_idx}_{i}_p.wav",
+                self.dataset_cfg["sample_rate"],
+                pred.cpu().numpy().T,
+            )
+            wavfile.write(
+                export_path / f"{batch_idx}_{i}_t.wav",
+                self.dataset_cfg["sample_rate"],
+                target.cpu().numpy().T,
+            )
 
     def on_train_start(self) -> None:
         if not isinstance(self.logger, WandbLogger) or self.wandb_watch_args is None:
@@ -297,11 +421,89 @@ class SSMLitModule(LightningModule):
         if isinstance(self.logger, WandbLogger) and self.wandb_watch_args is not None:
             self.logger.experiment.unwatch(self.estimator)
 
-    def on_train_epoch_end(self):
+    def on_validation_start(self):
+        if self.dataset_cfg is None:
+            self.dataset_cfg = self._get_dataset_cfg()
+
+        if sys.platform in ["linux", "linux2"] and self.dataset_cfg["synth"] == "dexed":
+            log.info("Dexed not supported on linux, skipping audio-based metrics.")
+            self.compute_a_metrics = False
+
+        # instantiate renderer if required
+        if self.compute_a_metrics and self.renderer is None:
+            self._instantiate_renderer()
+
+        # get sample rate to instantiate mel-based metrics
+        if isinstance(self.a_metrics.get("mel"), partial):
+            self.a_metrics["mel"] = self.a_metrics["mel"](sample_rate=self.dataset_cfg["sample_rate"])
+        if isinstance(self.a_metrics.get("mfccd"), partial):
+            self.a_metrics["mfccd"] = self.a_metrics["mfccd"](sr=self.dataset_cfg["sample_rate"])
+
+    def on_test_start(self):
+        self.on_validation_start()
+
+    def on_validation_epoch_end(self):
         # only start LR scheduler after warmup
         sch = self.lr_schedulers()
         if sch is not None and self.trainer.global_step >= self.num_warmup_steps:
-            sch.step(self.trainer.callback_metrics["val/loss"])
+            sch.step(self.trainer.callback_metrics["val/loss/total"])
+
+    def _instantiate_renderer(self):
+        if self.dataset_cfg["synth"] == "talnm":
+            path_to_plugin = os.environ["TALNM_PATH"]
+        elif self.dataset_cfg["synth"] == "dexed":
+            path_to_plugin = os.environ["DEXED_PATH"]
+        elif self.dataset_cfg["synth"] == "diva":
+            path_to_plugin = os.environ["DIVA_PATH"]
+        else:
+            raise NotImplementedError()
+
+        self.renderer = PresetRenderer(
+            synth_path=path_to_plugin,
+            sample_rate=self.dataset_cfg["sample_rate"],
+            render_duration_in_sec=self.dataset_cfg["render_duration_in_sec"],
+            convert_to_mono=True,
+            normalize_audio=False,
+            fadeout_in_sec=0.1,
+        )
+
+        # set not used parameters to default values
+        self.renderer.set_parameters(self.p_helper.excl_parameters_idx, self.p_helper.excl_parameters_val)
+
+    def _get_dataset_cfg(self):
+        if self.trainer.val_dataloaders is not None:
+            dataloaders = self.trainer.val_dataloaders
+        elif self.trainer.test_dataloaders is not None:
+            dataloaders = self.trainer.test_dataloaders
+        else:
+            dataloaders = self.trainer.train_dataloaders
+
+        if isinstance(dataloaders, list):
+            dataloader = dataloaders[0]
+        else:
+            dataloader = dataloaders
+
+        if isinstance(dataloader.dataset, torch.utils.data.Subset):
+            dataset = dataloader.dataset.dataset
+        else:
+            dataset = dataloader.dataset
+        return dataset.configs_dict
+
+    def _render_audio(self, synth_parameters: torch.Tensor) -> torch.Tensor:
+        if self.renderer is None:
+            self._instantiate_renderer()
+        # set synth parameters
+        self.renderer.set_parameters(self.p_helper.used_parameters_absolute_idx, synth_parameters)
+        # set midi parameters
+        self.renderer.set_midi_parameters(
+            self.dataset_cfg["midi_note"],
+            self.dataset_cfg["midi_velocity"],
+            self.dataset_cfg["midi_duration_in_sec"],
+        )
+        # render audio
+        audio_out = torch.from_numpy(self.renderer.render_note()).squeeze(0)
+
+        return audio_out
 
     def configure_optimizers(self) -> Any:
         optimizer = torch.optim.AdamW(
@@ -321,9 +523,6 @@ class SSMLitModule(LightningModule):
 
 if __name__ == "__main__":
     # for dev/debug
-    import os
-    import sys
-
     from dotenv import load_dotenv
     from omegaconf import OmegaConf
     from torch.utils.data import DataLoader, random_split
@@ -336,7 +535,9 @@ if __name__ == "__main__":
     load_dotenv()
 
     SYNTH = "diva"
-    DEBUG = False
+    DEBUG = True
+    COMPUTE_A_METRICS = False
+    DEVICE = "cpu"
 
     RANDOM_SPLIT = [0.89, 0.11]
     BATCH_SIZE = 64
@@ -387,13 +588,16 @@ if __name__ == "__main__":
         synth_proxy=synth_proxy,
         opt_cfg={
             "optimizer_kwargs": {"lr": 1e-3, "betas": (0.9, 0.999), "eps": 1e-08, "weight_decay": 0.2},
+            "scheduler_kwargs": {"factor": 0.5, "patience": 10},
             "num_warmup_steps": (101 if SYNTH == "diva" else 345) * 5,
         },
+        compute_a_metrics=COMPUTE_A_METRICS,
     )
 
     if DEBUG:
         trainer = Trainer(
             max_epochs=MAX_EPOCHS,
+            accelerator=DEVICE,
             deterministic=True,
             default_root_dir=None,
             enable_checkpointing=False,

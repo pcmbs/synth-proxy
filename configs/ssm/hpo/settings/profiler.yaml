@@ -10,7 +10,7 @@ study_name: debug_${now:%Y-%m-%d}_${now:%H-%M-%S}
 num_trials: 1
 num_startup_trials: 0
 
-# disable wandb loggert
+# disable wandb logger
 wandb: null
 
 # sets level of all command line loggers to 'DEBUG'

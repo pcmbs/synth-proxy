@@ -6,6 +6,8 @@ Adapted from https://github.com/hyakuchiki/SSSSM-DDSP/blob/main/diffsynth/schedu
 
 """
 
+from omegaconf import DictConfig
+
 
 class LinearScheduler:
     def __init__(self, start_value, end_value, start, warm):
@@ -40,7 +42,7 @@ class LossScheduler:
         loss_sched = sched_cfg.get(loss_name)
         if isinstance(loss_sched, float):
             return NopScheduler(loss_sched)
-        if isinstance(loss_sched, dict):
+        if isinstance(loss_sched, (dict, DictConfig)):
             return LinearScheduler(**loss_sched)
 
         raise NotImplementedError()

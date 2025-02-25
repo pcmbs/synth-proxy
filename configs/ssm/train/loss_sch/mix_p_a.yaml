@@ -10,3 +10,5 @@ perc:
   warm: ${warm}
   start_value: 1.0
   end_value: 0.5
+
+name: mix_p_a

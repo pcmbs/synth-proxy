@@ -224,6 +224,7 @@ def hpo(cfg: DictConfig) -> None:
         study.optimize(
             lambda trial: objective(trial, cfg, is_startup=True),
             n_trials=num_startup_trials - len(study.trials),
+            gc_after_trial=True,
         )
         if not is_interrupted:
             log.info("Startup trials finished.")
@@ -244,6 +245,7 @@ def hpo(cfg: DictConfig) -> None:
         study.optimize(
             lambda trial: objective(trial, cfg, is_startup=False),
             n_trials=cfg.num_trials - len(study.trials),
+            gc_after_trial=True,
         )
 
     log.info(f"Number of finished trials: {len(study.trials)}")

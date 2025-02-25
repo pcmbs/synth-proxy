@@ -1,3 +1,5 @@
 # only audio embedding loss
 param: 0.0
 perc: 1.0
+
+name: loss_a

@@ -33,9 +33,9 @@ trainer:
 slurm:
   auto_requeue: True
 
-# for resuming tranining
+# for resuming training
 ckpt_path: null
-
+run_id: null
 ##########################################
 ############ Lightning Module ############
 ##########################################
