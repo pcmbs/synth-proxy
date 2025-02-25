@@ -52,7 +52,7 @@ run_id: null
 optimizer:
   scheduler_kwargs:
     factor: 0.5
-    patience: 1 # correspoinds to 10 epochs since we run the validation epoch once every 10 training epochs
+    patience: 5 # correspoinds to 10 epochs since we run the validation epoch once every 10 training epochs
 
 wandb_watch_args:
   log: null

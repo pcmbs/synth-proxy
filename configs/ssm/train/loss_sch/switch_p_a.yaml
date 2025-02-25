@@ -9,6 +9,6 @@ perc:
   start: ${start}
   warm: ${warm}
   start_value: 0.0
-  end_value: 1.0
+  end_value: 10.0
 
 name: switch_p_a

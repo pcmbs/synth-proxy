@@ -59,7 +59,10 @@ class SSMLitModule(LightningModule):
             "perc": nn.L1Loss(),
         }
 
-        self.lw_cat = lw_cat
+        # scaling factors
+        self.lw_cat = lw_cat  # for categorical loss
+        self.lw_mfccd = 0.25  # for mfcc distance
+        # self.lw_a_base = 10.0 # for perceptual loss (done in loss scheduler)
 
         # loss scheduler
         self.loss_sch = {}
@@ -207,19 +210,19 @@ class SSMLitModule(LightningModule):
         loss_num, loss_bin, loss_cat = self.parameter_loss_fn(p_hat, p)
         loss_cat = loss_cat * self.lw_cat
         lw_p = self.loss_sch["param"](self.trainer.global_step)
-        loss_p = (loss_num + loss_bin + loss_cat) * lw_p
+        loss_p = loss_num + loss_bin + loss_cat
 
         # perceptual loss
         if callable(self.synth_proxy):
             presets_hat = self.decode_presets(p_hat)  # probabilities -> presets
             a_hat = self.synth_proxy(presets_hat)
-            lw_a = self.loss_sch["perc"](self.trainer.global_step)
-            loss_a = self.losses_fn["perc"](a_hat, a) * lw_a
+            loss_a = self.losses_fn["perc"](a_hat, a)
         else:
             loss_a = 0.0
+        lw_a = self.loss_sch["perc"](self.trainer.global_step)
 
         # composite loss
-        loss = loss_p + loss_a
+        loss = loss_p * lw_p + loss_a * lw_a
 
         # backward (only optimize estimator)
         opt.zero_grad()
@@ -377,6 +380,15 @@ class SSMLitModule(LightningModule):
                 else:
                     metrics_dict[f"metrics/{name}"] = fn(audio_pred, audio_target).item()
 
+            metrics_dict["metrics/mfccd"] = metrics_dict["metrics/mfccd"] * self.lw_mfccd
+            a_metrics_mean = (
+                metrics_dict["metrics/stft"]
+                + metrics_dict["metrics/mstft"]
+                + metrics_dict["metrics/mel"]
+                + metrics_dict["metrics/mfccd"]
+            ) / 4
+            metrics_dict["metrics/a_mean"] = a_metrics_mean
+
         if return_audio:
             audio = {"pred": audio_pred, "target": audio_target}
             return metrics_dict, audio
@@ -446,7 +458,7 @@ class SSMLitModule(LightningModule):
         # only start LR scheduler after warmup
         sch = self.lr_schedulers()
         if sch is not None and self.trainer.global_step >= self.num_warmup_steps:
-            sch.step(self.trainer.callback_metrics["val/loss/total"])
+            sch.step(self.trainer.callback_metrics["val/metrics/a_mean"])
 
     def _instantiate_renderer(self):
         if self.dataset_cfg["synth"] == "talnm":

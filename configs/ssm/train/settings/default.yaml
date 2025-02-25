@@ -34,9 +34,9 @@ callbacks:
   ckpt_loss:
     _target_: lightning.pytorch.callbacks.ModelCheckpoint
     dirpath: ${paths.output_dir}/checkpoints # directory to save the model file
-    filename: ${task_name}_e{epoch}_loss{val/loss/total:.4f}
+    filename: ${task_name}_e{epoch}_loss{val/metrics/a_mean:.4f}
     auto_insert_metric_name: False # when True, the checkpoints filenames will contain the metric name
-    monitor: "val/loss/total" # name of the logged metric which determines when model is improving
+    monitor: "val/metrics/a_mean" # name of the logged metric which determines when model is improving
     mode: min # max/min means higher/lower metric value is better
     save_top_k: 5 # save k best models (determined by above metric)
     every_n_epochs: 1 # number of epochs between checkpoints
@@ -49,7 +49,6 @@ callbacks:
   
   rich_progress_bar:
     _target_: lightning.pytorch.callbacks.RichProgressBar
-
 
 #####################################
 ############ Synth proxy ############
