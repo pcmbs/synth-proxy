@@ -48,7 +48,7 @@ def evaluate(cfg: DictConfig) -> Dict[str, Any]:
     log.info(f"Instantiating training Dataset: {cfg.dataset_name}")
     # instantiate train Dataset & DataLoader
     dataset = SynthDatasetPkl(path_to_dataset=cfg.dataset.path_to_dataset, has_mel=True, split="test")
-    id_loader = DataLoader(dataset, batch_size=cfg.batch_size, shuffle=True, num_workers=0)
+    id_loader = DataLoader(dataset, batch_size=cfg.batch_size, shuffle=False, num_workers=0)
     if cfg.ood_eval.run:
         log.info("Instantiating Out-Of-Domain NSynth dataset...")
 
@@ -62,7 +62,7 @@ def evaluate(cfg: DictConfig) -> Dict[str, Any]:
             audio_length=dataset.configs_dict["render_duration_in_sec"],
             pitch=cfg.ood_eval.pitch,
         )
-        nsynth_loader = DataLoader(nsynth_dataset, batch_size=cfg.batch_size)
+        nsynth_loader = DataLoader(nsynth_dataset, shuffle=False, batch_size=cfg.batch_size)
         loader = [id_loader, nsynth_loader]
     else:
         loader = id_loader
@@ -164,12 +164,6 @@ def evaluate(cfg: DictConfig) -> Dict[str, Any]:
     metrics_dict = trainer.callback_metrics
 
     if logger:
-        # additional save the hydra config
-        # under <project_name>/Runs/<run_id>/Files/.hydra if using wandb a logger
-        wandb.save(
-            glob_str=os.path.join(cfg["paths"].get("output_dir"), ".hydra", "*.yaml"),
-            base_path=cfg["paths"].get("output_dir"),
-        )
         wandb.finish()
 
     return metrics_dict, object_dict
@@ -193,7 +187,7 @@ def main(cfg: DictConfig) -> None:
 if __name__ == "__main__":
     import sys
 
-    args = ["src/ssm/eval.py", "settings=debug", "ckpt=diva_loss_p"]
+    args = ["src/ssm/eval.py", "ckpt=dexed_loss_p", "trainer.accelerator=cpu", "~wandb", "hydra.run.dir=."]
 
     gettrace = getattr(sys, "gettrace", None)
     if gettrace():

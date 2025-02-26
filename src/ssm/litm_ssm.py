@@ -14,6 +14,7 @@ from torchmetrics.classification import BinaryAccuracy, MulticlassAccuracy
 from optuna.trial import Trial
 from scipy.io import wavfile
 
+from models.preset.embedding_layers import RawParameters
 from ssm.loss_scheduler import LossScheduler, NopScheduler
 from utils.logging import RankedLogger
 from utils.synth import PresetHelper, PresetRenderer
@@ -39,6 +40,7 @@ class SSMLitModule(LightningModule):
     ):
         super().__init__()
         self.p_helper = preset_helper
+        self.cat_to_raw_params = RawParameters(preset_helper=self.p_helper)
         self.estimator = estimator
         self.synth_proxy = synth_proxy
         self.opt_cfg = opt_cfg
@@ -342,6 +344,7 @@ class SSMLitModule(LightningModule):
         if dataloader_idx == 0:
             str_id = "id"
             metrics_dict, audio_pred, audio_target = self._in_domain_test_step(batch, batch_idx)
+            # metrics_dict, audio_pred, audio_target = self._audio_test_step(batch, batch_idx)
         elif dataloader_idx == 1:
             str_id = "nsynth"
             metrics_dict, audio_pred, audio_target = self._nsynth_test_step(batch, batch_idx)
@@ -535,6 +538,8 @@ class SSMLitModule(LightningModule):
         return dataset.configs_dict
 
     def _render_batch_audio(self, batch: torch.Tensor) -> torch.Tensor:
+        # convert category index to raw parameters in [0,1] and render
+        batch = self.cat_to_raw_params(batch)
         audio = []
         for p in batch:
             audio.append(self._render_audio(p))
@@ -567,21 +572,6 @@ class SSMLitModule(LightningModule):
                 self.dataset_cfg["sample_rate"],
                 a.cpu().numpy().T,
             )
-
-    # def _export_audio(self, audio: Dict[str, torch.Tensor], batch_idx: int, suffix: str) -> None:
-    #     export_path = Path(self.trainer.log_dir) / "audio"
-    #     export_path.mkdir(exist_ok=True, parents=True)
-    #     for i, (pred, target) in enumerate(zip(audio["pred"], audio["target"])):
-    #         wavfile.write(
-    #             export_path / f"{batch_idx}_{i}_p.wav",
-    #             self.dataset_cfg["sample_rate"],
-    #             pred.cpu().numpy().T,
-    #         )
-    #         wavfile.write(
-    #             export_path / f"{batch_idx}_{i}_t.wav",
-    #             self.dataset_cfg["sample_rate"],
-    #             target.cpu().numpy().T,
-    #         )
 
     def configure_optimizers(self) -> Any:
         optimizer = torch.optim.AdamW(
