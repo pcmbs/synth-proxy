@@ -26,8 +26,10 @@ batch_size: 64
 lw_cat: 0.01
 
 # scaling factor for the perceptual loss
-# lw_a: 5.0
 lw_a: 10.0
+
+# start for the linear schedule as a a ratio of total_num_steps
+start_ratio: 0.333
 
 # number of epochs
 trainer:

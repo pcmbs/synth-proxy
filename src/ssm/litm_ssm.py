@@ -344,7 +344,6 @@ class SSMLitModule(LightningModule):
         if dataloader_idx == 0:
             str_id = "id"
             metrics_dict, audio_pred, audio_target = self._in_domain_test_step(batch, batch_idx)
-            # metrics_dict, audio_pred, audio_target = self._audio_test_step(batch, batch_idx)
         elif dataloader_idx == 1:
             str_id = "nsynth"
             metrics_dict, audio_pred, audio_target = self._nsynth_test_step(batch, batch_idx)

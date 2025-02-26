@@ -137,6 +137,7 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
             "losses": {
                 "lw_cat": cfg.lw_cat,
                 "loss_sch": cfg.loss_sch.name,
+                "start_ratio": cfg.start_ratio,
             },
             "opt": {
                 "lr": cfg.optimizer.optimizer_kwargs.lr,
@@ -186,12 +187,6 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
     metrics_dict = trainer.callback_metrics
 
     if logger:
-        # additional save the hydra config
-        # under <project_name>/Runs/<run_id>/Files/.hydra if using wandb a logger
-        wandb.save(
-            glob_str=os.path.join(cfg["paths"].get("output_dir"), ".hydra", "*.yaml"),
-            base_path=cfg["paths"].get("output_dir"),
-        )
         wandb.finish()
 
     return metrics_dict, object_dict

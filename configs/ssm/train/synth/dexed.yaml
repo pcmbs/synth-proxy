@@ -27,5 +27,5 @@ total_num_steps: ${total_num_steps:${trainer.max_epochs},22116,${batch_size}}
 
 # to follow SSSSM-DDSP paper, the start ratio should be 0.125 (warmp around 0.375)
 # here we train for 600 epochs and start half-way through
-start: ${start:${total_num_steps},0.5}
-warm: ${warm:${total_num_steps},0.4}
+start: ${start:${total_num_steps},${start_ratio}}
+warm: ${warm:${total_num_steps},0.33}
