@@ -1,0 +1,7 @@
+# @package _global_
+
+defaults:
+  - override /synth: dexed
+  - override /loss_sch: loss_p_only
+
+train_ckpt: dexed_ssm_mn20_hc_v1_loss_p_e369_loss1.7088

@@ -180,19 +180,10 @@ if __name__ == "__main__":
     PITCH = 60  # 60 samples with pitch 60 (C3)
     VELOCITY = None
 
-    MEL_KWARGS = {
-        "n_mels": 128,
-        "sr": 32000,
-        "n_fft": 1024,
-        "win_length": 1024,
-        "hop_length": 512,
-        "fast_normalization": False,
-    }
-
     DATA_DIR = Path(os.environ["PROJECT_ROOT"]) / "data" / "datasets" / "eval"
 
     nsynth_dataset = NSynthDataset(
-        root=DATA_DIR, subset="test", return_mel=True, mel_kwargs=MEL_KWARGS, pitch=PITCH, velocities=VELOCITY
+        root=DATA_DIR, subset="test", return_mel=False, pitch=PITCH, velocities=VELOCITY
     )
     nsynth_dataloader = DataLoader(nsynth_dataset, batch_size=8, shuffle=True)
 

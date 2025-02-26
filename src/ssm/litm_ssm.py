@@ -338,12 +338,23 @@ class SSMLitModule(LightningModule):
             sch.step(self.trainer.callback_metrics["val/metrics/a_mean"])
 
     def test_step(self, batch, batch_idx: int, dataloader_idx: int = 0):
+
         if dataloader_idx == 0:
-            self._in_domain_test_step(batch, batch_idx)
+            str_id = "id"
+            metrics_dict, audio_pred, audio_target = self._in_domain_test_step(batch, batch_idx)
         elif dataloader_idx == 1:
-            self._nsynth_test_step(batch, batch_idx)
+            str_id = "nsynth"
+            metrics_dict, audio_pred, audio_target = self._nsynth_test_step(batch, batch_idx)
         else:
             raise NotImplementedError()
+
+        if batch_idx < self.test_batch_to_export:
+            self._export_audio(audio=audio_pred, batch_idx=batch_idx, file_suffix="p", folder_suffix=str_id)
+            self._export_audio(audio=audio_target, batch_idx=batch_idx, file_suffix="t", folder_suffix=str_id)
+
+        # log all metrics
+        for name, val in metrics_dict.items():
+            self.log(f"test/{str_id}/{name}", val, on_step=False, on_epoch=True)
 
     def on_test_start(self):
         self.on_validation_start()
@@ -386,37 +397,21 @@ class SSMLitModule(LightningModule):
         metrics_dict, audio = self._compute_metrics(preset_pred, p, return_audio=True)
         logs_dict = {**losses_dict, **metrics_dict}
 
-        if batch_idx < self.test_batch_to_export:
-            self._export_audio(audio=audio["pred"], batch_idx=batch_idx, file_suffix="p", folder_suffix="id")
-            self._export_audio(
-                audio=audio["target"], batch_idx=batch_idx, file_suffix="t", folder_suffix="id"
-            )
-
-        # log all metrics
-        for name, val in logs_dict.items():
-            self.log(f"test/id/{name}", val, on_step=False, on_epoch=True)
+        return logs_dict, audio["pred"], audio["target"]
 
     def _nsynth_test_step(self, batch, batch_idx: int):
         a, i, m = batch  # audio target, indexes, mel spectrogram
         device = a.device
-        # Here we do not want to weight the parameter and perceptual losses
-        # to know how it evolves over time depending on the loss schedulers
 
-        # predict presets
+        # predict presets and render audio
         p_hat = self.estimator(m)
         preset_pred = self.decode_presets(p_hat)
-
         audio_pred = self._render_batch_audio(preset_pred).to(device)
 
+        # compute metrics
         metrics_dict = self._compute_a_metrics(audio_pred, a, device)
 
-        if batch_idx < self.test_batch_to_export:
-            self._export_audio(audio_pred, batch_idx, file_suffix="p", folder_suffix="nsynth")
-            self._export_audio(a, batch_idx, file_suffix="t", folder_suffix="nsynth")
-
-        # log all metrics
-        for name, val in metrics_dict.items():
-            self.log(f"test/nsynth/{name}", val, on_step=False, on_epoch=True)
+        return metrics_dict, audio_pred, a
 
     def _compute_metrics(
         self, pred: torch.Tensor, target: torch.Tensor, return_audio: bool = False

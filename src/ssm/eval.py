@@ -1,7 +1,7 @@
 # pylint: disable=W0212:protected-access
 # pylint: disable=W1203:logging-fstring-interpolation
 """
-Training script.
+Evaluation script.
 Adapted from https://github.com/ashleve/lightning-hydra-template/blob/main/src/train.py
 
 See configs/ssm/train for more details.
@@ -32,7 +32,7 @@ from utils.synth.preset_helper import PresetHelper
 log = RankedLogger(__name__, rank_zero_only=True)
 
 
-def train(cfg: DictConfig) -> Dict[str, Any]:
+def evaluate(cfg: DictConfig) -> Dict[str, Any]:
     """
     Args:
         cfg (DictConfig): A DictConfig configuration composed by Hydra.
@@ -54,7 +54,7 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
 
         nsynth_dataset = NSynthDataset(
             root=Path(cfg.paths.root_dir) / "data" / "datasets" / "eval",
-            subset="test",
+            subset="valid",
             return_mel=True,
             mel_kwargs={**dataset.mel_cfg, **{"sr": dataset.configs_dict["sample_rate"]}},
             mel_stats=torch.load(dataset.path_to_dataset / "stats_train.pkl"),
@@ -181,7 +181,7 @@ def main(cfg: DictConfig) -> None:
     Main entry point for training.
     """
     # train the model
-    metrics_dict, _ = train(cfg)
+    metrics_dict, _ = evaluate(cfg)
 
     log.info(f"Metrics: {metrics_dict}")
 

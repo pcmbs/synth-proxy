@@ -19,18 +19,13 @@ optimizer:
 label_smoothing: 0.01
 
 # diva: len(train_dataset)= 7721 if [0.8, 0.1, 0.1] split is used
+# total_num_steps = num_epochs * dataset_size // batch_size
+total_num_steps: ${total_num_steps:${trainer.max_epochs},7721,${batch_size}}
 
 # step number at which the linear schedule start for both loss
-# total_num_steps = num_epochs * dataset_size // batch_size
+# while warmp is the number of steps for which the linear schedule is active
 
-# to follow SSSSM-DDSP paper, should be num_steps // 8
-# for diva we have: 400 * 7721 // 64 = 48256; 48256 // 8 = 6032
-# start: 6032
-
-# to have the scheduler start half way through set instead: 
-# we have: 48256 // 2 = 24128
-start: 24128
-
-# how long should the linear schedule last
-# to follow SSSSM-DDSP paper, should be num_steps // 2 - start
-warm: 18096
+# to follow SSSSM-DDSP paper, the start ratio should be 0.125 (warmp around 0.375)
+# here we train for 600 epochs and start half-way through
+start: ${start:${total_num_steps},0.5}
+warm: ${warm:${total_num_steps},0.4}

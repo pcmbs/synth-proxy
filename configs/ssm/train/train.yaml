@@ -31,7 +31,7 @@ lw_a: 10.0
 
 # number of epochs
 trainer:
-  max_epochs: 400
+  max_epochs: 600
   log_every_n_steps: 50
   deterministic: True
   accelerator: gpu
@@ -56,7 +56,7 @@ run_id: null
 optimizer:
   scheduler_kwargs:
     factor: 0.5
-    patience: 5 # correspoinds to 10 epochs since we run the validation epoch once every 10 training epochs
+    patience: 5 # correspoinds to 50 epochs since we run the validation epoch once every 10 training epochs
 
 wandb_watch_args:
   log: null

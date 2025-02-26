@@ -6,6 +6,7 @@ from . import (
     synth,
     lr_schedulers,
     reduce_fn,
+    resolvers,
     visualization,
     inference,
 )
