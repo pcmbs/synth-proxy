@@ -19,7 +19,7 @@ from lightning import Callback, Trainer
 from lightning.pytorch.loggers import Logger
 from lightning.pytorch.plugins.environments import SLURMEnvironment
 from lightning.pytorch.loggers.wandb import WandbLogger
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import wandb
 
 from data.datasets import SynthDatasetPkl
@@ -31,6 +31,14 @@ from utils.synth.preset_helper import PresetHelper
 
 # logger for this file
 log = RankedLogger(__name__, rank_zero_only=True)
+
+
+# for perceptual loss scaling in hydra config
+def resolve_mul(x: float, y: float) -> float:
+    return x * y
+
+
+OmegaConf.register_new_resolver("mul", resolve_mul)
 
 
 def train(cfg: DictConfig) -> Dict[str, Any]:

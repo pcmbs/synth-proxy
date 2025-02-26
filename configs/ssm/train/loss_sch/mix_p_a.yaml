@@ -8,7 +8,7 @@ param:
 perc:  
   start: ${start}
   warm: ${warm}
-  start_value: 1.0
-  end_value: 5.0
+  start_value: ${mul:1.0,${lw_a}}
+  end_value: ${mul:0.5,${lw_a}}
 
 name: mix_p_a

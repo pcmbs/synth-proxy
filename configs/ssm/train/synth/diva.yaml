@@ -22,9 +22,14 @@ label_smoothing: 0.01
 
 # step number at which the linear schedule start for both loss
 # total_num_steps = num_epochs * dataset_size // batch_size
+
 # to follow SSSSM-DDSP paper, should be num_steps // 8
 # for diva we have: 400 * 7721 // 64 = 48256; 48256 // 8 = 6032
-start: 6032
+# start: 6032
+
+# to have the scheduler start half way through set instead: 
+# we have: 48256 // 2 = 24128
+start: 24128
 
 # how long should the linear schedule last
 # to follow SSSSM-DDSP paper, should be num_steps // 2 - start

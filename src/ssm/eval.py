@@ -7,6 +7,7 @@ Adapted from https://github.com/ashleve/lightning-hydra-template/blob/main/src/t
 See configs/ssm/train for more details.
 """
 import os
+from pathlib import Path
 import pickle
 from typing import Any, Dict
 
@@ -21,7 +22,7 @@ from lightning.pytorch.loggers.wandb import WandbLogger
 from omegaconf import DictConfig
 import wandb
 
-from data.datasets import SynthDatasetPkl
+from data.datasets import SynthDatasetPkl, NSynthDataset
 from ssm.estimator_network import EstimatorNet
 from ssm.litm_ssm import SSMLitModule
 from utils.logging import RankedLogger
@@ -47,7 +48,24 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
     log.info(f"Instantiating training Dataset: {cfg.dataset_name}")
     # instantiate train Dataset & DataLoader
     dataset = SynthDatasetPkl(path_to_dataset=cfg.dataset.path_to_dataset, has_mel=True, split="test")
-    loader = DataLoader(dataset, batch_size=cfg.batch_size, shuffle=True, num_workers=0)
+    id_loader = DataLoader(dataset, batch_size=cfg.batch_size, shuffle=True, num_workers=0)
+    if cfg.ood_eval.run:
+        log.info("Instantiating Out-Of-Domain NSynth dataset...")
+
+        nsynth_dataset = NSynthDataset(
+            root=Path(cfg.paths.root_dir) / "data" / "datasets" / "eval",
+            subset="test",
+            return_mel=True,
+            mel_kwargs={**dataset.mel_cfg, **{"sr": dataset.configs_dict["sample_rate"]}},
+            mel_stats=torch.load(dataset.path_to_dataset / "stats_train.pkl"),
+            mel_norm=dataset.mel_norm,
+            audio_length=dataset.configs_dict["render_duration_in_sec"],
+            pitch=cfg.ood_eval.pitch,
+        )
+        nsynth_loader = DataLoader(nsynth_dataset, batch_size=cfg.batch_size)
+        loader = [id_loader, nsynth_loader]
+    else:
+        loader = id_loader
 
     log.info(f"Instantiating Preset Helper for synth {dataset.synth_name} and excluded params:")
     log.info(f"{dataset.configs_dict['params_to_exclude']}")
@@ -134,14 +152,15 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
     ckpt_path = cfg.get("path_to_train_ckpt")
     log.info(f"Starting evaluation from checkpoint: {ckpt_path}.")
     log.info(f"Audio files will be exported to {cfg.trainer.default_root_dir}.")
-
+    if cfg.ood_eval.run:
+        log.info("Running evaluation on both in-domain and out-of-domain datasets...")
+    else:
+        log.info("Running evaluation on in-domain dataset...")
     trainer.test(
         model=model,
         dataloaders=loader,
         ckpt_path=ckpt_path,
     )
-
-    # get metrics available to callbacks. This includes metrics logged via log().
     metrics_dict = trainer.callback_metrics
 
     if logger:
@@ -174,7 +193,7 @@ def main(cfg: DictConfig) -> None:
 if __name__ == "__main__":
     import sys
 
-    args = ["src/ssm/eval.py", "settings=debug", "synth=diva", "loss_sch=loss_a_only"]
+    args = ["src/ssm/eval.py", "settings=debug", "ckpt=diva_loss_p"]
 
     gettrace = getattr(sys, "gettrace", None)
     if gettrace():

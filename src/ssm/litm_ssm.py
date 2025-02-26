@@ -249,6 +249,29 @@ class SSMLitModule(LightningModule):
             self.log("train/loss/perc", loss_a, prog_bar=True, on_step=True, on_epoch=True)
             self.log("lw/perc", lw_a, on_step=True, on_epoch=True)
 
+    def on_train_start(self) -> None:
+        if not isinstance(self.logger, WandbLogger) or self.wandb_watch_args is None:
+            log.info("Skipping watching model.")
+        else:
+            self.logger.watch(
+                self.estimator,
+                log=self.wandb_watch_args["log"],
+                log_freq=self.wandb_watch_args["log_freq"],
+                log_graph=False,
+            )
+        # set the synth proxy to eval mode
+        if callable(self.synth_proxy):
+            self.synth_proxy.eval()
+
+        # initialize the linear LR warmup
+        opt = self.optimizers()
+        for pg in opt.optimizer.param_groups:
+            pg["lr"] = self.lr * 1.0 / self.num_warmup_steps
+
+    def on_train_end(self) -> None:
+        if isinstance(self.logger, WandbLogger) and self.wandb_watch_args is not None:
+            self.logger.experiment.unwatch(self.estimator)
+
     def validation_step(self, batch, batch_idx: int):
         p, a, m = batch  # synth parameters, audio embedding, mel spectrogram
 
@@ -290,7 +313,42 @@ class SSMLitModule(LightningModule):
         for name, val in metrics_dict.items():
             self.log(f"val/{name}", val, on_step=False, on_epoch=True)
 
-    def test_step(self, batch, batch_idx: int):
+    def on_validation_start(self):
+        if self.dataset_cfg is None:
+            self.dataset_cfg = self._get_dataset_cfg()
+
+        if sys.platform in ["linux", "linux2"] and self.dataset_cfg["synth"] == "dexed":
+            log.info("Dexed not supported on linux, skipping audio-based metrics.")
+            self.compute_a_metrics = False
+
+        # instantiate renderer if required
+        if self.compute_a_metrics and self.renderer is None:
+            self._instantiate_renderer()
+
+        # get sample rate to instantiate mel-based metrics
+        if isinstance(self.a_metrics.get("mel"), partial):
+            self.a_metrics["mel"] = self.a_metrics["mel"](sample_rate=self.dataset_cfg["sample_rate"])
+        if isinstance(self.a_metrics.get("mfccd"), partial):
+            self.a_metrics["mfccd"] = self.a_metrics["mfccd"](sr=self.dataset_cfg["sample_rate"])
+
+    def on_validation_epoch_end(self):
+        # only start LR scheduler after warmup
+        sch = self.lr_schedulers()
+        if sch is not None and self.trainer.global_step >= self.num_warmup_steps:
+            sch.step(self.trainer.callback_metrics["val/metrics/a_mean"])
+
+    def test_step(self, batch, batch_idx: int, dataloader_idx: int = 0):
+        if dataloader_idx == 0:
+            self._in_domain_test_step(batch, batch_idx)
+        elif dataloader_idx == 1:
+            self._nsynth_test_step(batch, batch_idx)
+        else:
+            raise NotImplementedError()
+
+    def on_test_start(self):
+        self.on_validation_start()
+
+    def _in_domain_test_step(self, batch, batch_idx: int):
         p, a, m = batch  # synth parameters, audio embedding, mel spectrogram
 
         # Here we do not want to weight the parameter and perceptual losses
@@ -315,7 +373,7 @@ class SSMLitModule(LightningModule):
 
         loss = loss_p + loss_a
 
-        metrics_dict = {
+        losses_dict = {
             "loss/total": loss.item(),
             "loss/param": loss_p.item(),
             "loss/num": loss_num.item(),
@@ -325,28 +383,72 @@ class SSMLitModule(LightningModule):
         }
 
         # Compute validation metrics (return audio)
-        a_metrics, audio = self._compute_metrics(preset_pred, p, return_audio=True)
-        metrics_dict.update(a_metrics)
+        metrics_dict, audio = self._compute_metrics(preset_pred, p, return_audio=True)
+        logs_dict = {**losses_dict, **metrics_dict}
 
         if batch_idx < self.test_batch_to_export:
-            self._export_audio(audio, batch_idx)
+            self._export_audio(audio=audio["pred"], batch_idx=batch_idx, file_suffix="p", folder_suffix="id")
+            self._export_audio(
+                audio=audio["target"], batch_idx=batch_idx, file_suffix="t", folder_suffix="id"
+            )
+
+        # log all metrics
+        for name, val in logs_dict.items():
+            self.log(f"test/id/{name}", val, on_step=False, on_epoch=True)
+
+    def _nsynth_test_step(self, batch, batch_idx: int):
+        a, i, m = batch  # audio target, indexes, mel spectrogram
+        device = a.device
+        # Here we do not want to weight the parameter and perceptual losses
+        # to know how it evolves over time depending on the loss schedulers
+
+        # predict presets
+        p_hat = self.estimator(m)
+        preset_pred = self.decode_presets(p_hat)
+
+        audio_pred = self._render_batch_audio(preset_pred).to(device)
+
+        metrics_dict = self._compute_a_metrics(audio_pred, a, device)
+
+        if batch_idx < self.test_batch_to_export:
+            self._export_audio(audio_pred, batch_idx, file_suffix="p", folder_suffix="nsynth")
+            self._export_audio(a, batch_idx, file_suffix="t", folder_suffix="nsynth")
 
         # log all metrics
         for name, val in metrics_dict.items():
-            self.log(f"test/{name}", val, on_step=False, on_epoch=True)
+            self.log(f"test/nsynth/{name}", val, on_step=False, on_epoch=True)
 
     def _compute_metrics(
         self, pred: torch.Tensor, target: torch.Tensor, return_audio: bool = False
     ) -> Dict[str, float]:
-
-        # move metrics to device if necessary
         device = pred.device
-        for _, fn in self.a_metrics.items():
-            fn.to(device)
+        p_metrics_dict = self._compute_p_metrics(pred, target, device)
+
+        if self.compute_a_metrics:
+            audio_pred = self._render_batch_audio(pred).to(device)
+            audio_target = self._render_batch_audio(target).to(device)
+
+            a_metrics_dict = self._compute_a_metrics(audio_pred, audio_target, device)
+
+        else:
+            a_metrics_dict = {}
+
+        metrics_dict = {**p_metrics_dict, **a_metrics_dict}
+
+        if return_audio:
+            audio = {"pred": audio_pred, "target": audio_target}
+            return metrics_dict, audio
+
+        return metrics_dict
+
+    def _compute_p_metrics(
+        self, pred: torch.Tensor, target: torch.Tensor, device: torch.device
+    ) -> Dict[str, float]:
         for _, fn in self.p_metrics.items():
             fn.to(device)
 
         idx = self.params_idx["target"]
+
         metrics_dict = {}
         if self.p_helper.has_num_parameters:  # same as the loss
             metrics_dict["metrics/num_mae"] = self.p_metrics["num_mae"](
@@ -363,102 +465,38 @@ class SSMLitModule(LightningModule):
                 pred[:, idx["cat"]], target[:, idx["cat"]]
             ).item()
 
-        if self.compute_a_metrics:
-            audio_pred = []
-            audio_target = []
-            for p, t in zip(pred, target):
-                audio_pred.append(self._render_audio(p))
-                audio_target.append(self._render_audio(t))
-            audio_pred = torch.stack(audio_pred).to(device)
-            audio_target = torch.stack(audio_target).to(device)
-
-            for name, fn in self.a_metrics.items():
-                if name in ["stft", "mstft", "mel"]:  # add channel dim for auraloss
-                    metrics_dict[f"metrics/{name}"] = fn(
-                        audio_pred.unsqueeze(1), audio_target.unsqueeze(1)
-                    ).item()
-                else:
-                    metrics_dict[f"metrics/{name}"] = fn(audio_pred, audio_target).item()
-
-            metrics_dict["metrics/mfccd"] = metrics_dict["metrics/mfccd"] * self.lw_mfccd
-            a_metrics_mean = (
-                metrics_dict["metrics/stft"]
-                + metrics_dict["metrics/mstft"]
-                + metrics_dict["metrics/mel"]
-                + metrics_dict["metrics/mfccd"]
-            ) / 4
-            metrics_dict["metrics/a_mean"] = a_metrics_mean
-
-        if return_audio:
-            audio = {"pred": audio_pred, "target": audio_target}
-            return metrics_dict, audio
-
         return metrics_dict
 
-    def _export_audio(self, audio: Dict[str, torch.Tensor], batch_idx: int) -> None:
-        export_path = Path(self.trainer.log_dir) / "audio"
-        export_path.mkdir(exist_ok=True, parents=True)
-        for i, (pred, target) in enumerate(zip(audio["pred"], audio["target"])):
-            wavfile.write(
-                export_path / f"{batch_idx}_{i}_p.wav",
-                self.dataset_cfg["sample_rate"],
-                pred.cpu().numpy().T,
-            )
-            wavfile.write(
-                export_path / f"{batch_idx}_{i}_t.wav",
-                self.dataset_cfg["sample_rate"],
-                target.cpu().numpy().T,
-            )
+    def _compute_a_metrics(
+        self,
+        audio_pred: torch.Tensor,
+        audio_target: torch.Tensor,
+        device: torch.device,
+    ) -> Dict[str, float]:
+        # move metrics to device if necessary
+        for _, fn in self.a_metrics.items():
+            fn.to(device)
 
-    def on_train_start(self) -> None:
-        if not isinstance(self.logger, WandbLogger) or self.wandb_watch_args is None:
-            log.info("Skipping watching model.")
-        else:
-            self.logger.watch(
-                self.estimator,
-                log=self.wandb_watch_args["log"],
-                log_freq=self.wandb_watch_args["log_freq"],
-                log_graph=False,
-            )
-        # set the synth proxy to eval mode
-        if callable(self.synth_proxy):
-            self.synth_proxy.eval()
+        metrics_dict = {}
 
-        # initialize the linear LR warmup
-        opt = self.optimizers()
-        for pg in opt.optimizer.param_groups:
-            pg["lr"] = self.lr * 1.0 / self.num_warmup_steps
+        for name, fn in self.a_metrics.items():
+            if name in ["stft", "mstft", "mel"]:  # add channel dim for auraloss
+                metrics_dict[f"metrics/{name}"] = fn(
+                    audio_pred.unsqueeze(1), audio_target.unsqueeze(1)
+                ).item()
+            else:
+                metrics_dict[f"metrics/{name}"] = fn(audio_pred, audio_target).item()
 
-    def on_train_end(self) -> None:
-        if isinstance(self.logger, WandbLogger) and self.wandb_watch_args is not None:
-            self.logger.experiment.unwatch(self.estimator)
+        metrics_dict["metrics/mfccd"] = metrics_dict["metrics/mfccd"] * self.lw_mfccd
+        a_metrics_mean = (
+            metrics_dict["metrics/stft"]
+            + metrics_dict["metrics/mstft"]
+            + metrics_dict["metrics/mel"]
+            + metrics_dict["metrics/mfccd"]
+        ) / 4
+        metrics_dict["metrics/a_mean"] = a_metrics_mean
 
-    def on_validation_start(self):
-        if self.dataset_cfg is None:
-            self.dataset_cfg = self._get_dataset_cfg()
-
-        if sys.platform in ["linux", "linux2"] and self.dataset_cfg["synth"] == "dexed":
-            log.info("Dexed not supported on linux, skipping audio-based metrics.")
-            self.compute_a_metrics = False
-
-        # instantiate renderer if required
-        if self.compute_a_metrics and self.renderer is None:
-            self._instantiate_renderer()
-
-        # get sample rate to instantiate mel-based metrics
-        if isinstance(self.a_metrics.get("mel"), partial):
-            self.a_metrics["mel"] = self.a_metrics["mel"](sample_rate=self.dataset_cfg["sample_rate"])
-        if isinstance(self.a_metrics.get("mfccd"), partial):
-            self.a_metrics["mfccd"] = self.a_metrics["mfccd"](sr=self.dataset_cfg["sample_rate"])
-
-    def on_test_start(self):
-        self.on_validation_start()
-
-    def on_validation_epoch_end(self):
-        # only start LR scheduler after warmup
-        sch = self.lr_schedulers()
-        if sch is not None and self.trainer.global_step >= self.num_warmup_steps:
-            sch.step(self.trainer.callback_metrics["val/metrics/a_mean"])
+        return metrics_dict
 
     def _instantiate_renderer(self):
         if self.dataset_cfg["synth"] == "talnm":
@@ -501,6 +539,12 @@ class SSMLitModule(LightningModule):
             dataset = dataloader.dataset
         return dataset.configs_dict
 
+    def _render_batch_audio(self, batch: torch.Tensor) -> torch.Tensor:
+        audio = []
+        for p in batch:
+            audio.append(self._render_audio(p))
+        return torch.stack(audio)
+
     def _render_audio(self, synth_parameters: torch.Tensor) -> torch.Tensor:
         if self.renderer is None:
             self._instantiate_renderer()
@@ -516,6 +560,33 @@ class SSMLitModule(LightningModule):
         audio_out = torch.from_numpy(self.renderer.render_note()).squeeze(0)
 
         return audio_out
+
+    def _export_audio(
+        self, audio: Dict[str, torch.Tensor], batch_idx: int, file_suffix: str, folder_suffix: str
+    ) -> None:
+        export_path = Path(self.trainer.log_dir) / f"audio_{folder_suffix}"
+        export_path.mkdir(exist_ok=True, parents=True)
+        for i, a in enumerate(audio):
+            wavfile.write(
+                export_path / f"{batch_idx}_{i}_{file_suffix}.wav",
+                self.dataset_cfg["sample_rate"],
+                a.cpu().numpy().T,
+            )
+
+    # def _export_audio(self, audio: Dict[str, torch.Tensor], batch_idx: int, suffix: str) -> None:
+    #     export_path = Path(self.trainer.log_dir) / "audio"
+    #     export_path.mkdir(exist_ok=True, parents=True)
+    #     for i, (pred, target) in enumerate(zip(audio["pred"], audio["target"])):
+    #         wavfile.write(
+    #             export_path / f"{batch_idx}_{i}_p.wav",
+    #             self.dataset_cfg["sample_rate"],
+    #             pred.cpu().numpy().T,
+    #         )
+    #         wavfile.write(
+    #             export_path / f"{batch_idx}_{i}_t.wav",
+    #             self.dataset_cfg["sample_rate"],
+    #             target.cpu().numpy().T,
+    #         )
 
     def configure_optimizers(self) -> Any:
         optimizer = torch.optim.AdamW(

@@ -154,7 +154,6 @@ class SynthDatasetPkl(Dataset):
             self.mel_stats = torch.load(
                 str(self.path_to_dataset / f"stats{suffix_stats}.pkl"),
                 map_location="cpu",
-                mmap=self.is_mmap,
             )
             if self.mel_norm == "min_max":
                 self.mel = self._min_max_scaler(self.mel)

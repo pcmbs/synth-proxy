@@ -1,5 +1,5 @@
 # only audio embedding loss
 param: 0.0
-perc: 10.0
+perc: ${mul:1.0,${lw_a}}
 
 name: loss_a

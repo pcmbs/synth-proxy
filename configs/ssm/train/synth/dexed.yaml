@@ -24,7 +24,11 @@ label_smoothing: 0.02
 # total_num_steps = num_epochs * dataset_size // batch_size
 # to follow SSSSM-DDSP paper, should be num_steps // 8
 # for dexed we have: 400 * 22116 // 64 = 138225; 138225 // 8 = 17278
-start: 17278
+# start: 17278
+
+# to have the scheduler start half way through set instead: 
+# we have: 138225 // 2 = 69112
+start: 69112
 
 # how long should the linear schedule last
 # to follow SSSSM-DDSP paper, should be num_steps // 2 - start

@@ -3,24 +3,29 @@
 defaults:
   - train
   - _self_
-  # - synth: ???
-  # - settings: default
-  # - loss_sch: ???
+  - ckpt: ???
 
 callbacks: null
 
-# ckpt to the model to evaluate
-train_ckpt: diva_ssm_mn20_hc_v1_loss_a_test.ckpt
+# ckpt to the model to evaluate (see configs/smm/train/ckpt folder)
+train_ckpt: ???
 
 # batch size to compute the test metrics
 batch_size: 32
 
-# number of batch to export
-batch_to_export: 4
+# number of batch to export from the in-domain test set
+batch_to_export: 2
+
+# whether or not to run the evaluation of the out-of-domain test set (nsynth-test).
+# note that all samples will be exported 
+ood_eval:
+  run: true 
+  pitch: 60 # pitch to consider C3
+
 
 
 # other configs
-path_to_train_ckpt: ${paths.root_dir}/checkpoints/${train_ckpt}
+path_to_train_ckpt: ${paths.root_dir}/checkpoints/${train_ckpt}.ckpt
 
 
 hydra:
