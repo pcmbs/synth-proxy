@@ -1,0 +1,17 @@
+# @package _global_
+
+# synthesizer to use
+synth: dexed
+
+# path to the checkpoint to load for the synth proxy
+path_to_ckpt: ${paths.root_dir}/checkpoints/dexed_tfm_mn20_mel_e59_loss0.0217.ckpt
+
+optimizer:
+  optimizer_kwargs:
+    lr: 1e-3
+    betas:
+      - 0.90
+      - 0.998
+    eps: 1e-8
+    weight_decay: 0.01
+  num_warmup_steps: 3450 # 10 epochs

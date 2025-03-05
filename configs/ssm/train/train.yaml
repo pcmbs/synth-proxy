@@ -1,0 +1,65 @@
+# @package _global_
+
+defaults:
+  - _self_
+  - synth: ???
+  - settings: default
+  - loss_sch: ???
+
+# see synth configs for synth specific HPs and configs
+
+######################################
+############ Main Configs ############
+######################################
+
+# tag to identify the run (overwritten in loss_sch config)
+tag: ${loss_sch.name}
+
+#dataset to use for finetuning
+dataset_name: mn20_hc_v1
+
+# batch size for the train and val dataloaders
+batch_size: 64
+
+# scaling factor for the cat loss (in parameter loss)
+# since way bigger than the rest
+lw_cat: 0.01
+
+# scaling factor for the perceptual loss
+lw_a: 10.0
+
+# start for the linear schedule as a a ratio of total_num_steps
+start_ratio: 0.333
+
+# number of epochs
+trainer:
+  max_epochs: 600
+  log_every_n_steps: 50
+  deterministic: True
+  accelerator: gpu
+  devices: 1
+  default_root_dir: ${paths.output_dir}
+  check_val_every_n_epoch: 10 # rendering audio takes time 
+
+# whether or not to compute audio-based metrics during validation
+compute_a_metrics: true
+
+slurm:
+  auto_requeue: true
+
+# for resuming tranining
+ckpt_path: null
+run_id: null
+
+
+##########################################
+############ Lightning Module ############
+##########################################
+optimizer:
+  scheduler_kwargs:
+    factor: 0.5
+    patience: 5 # correspoinds to 50 epochs since we run the validation epoch once every 10 training epochs
+
+wandb_watch_args:
+  log: null
+  log_freq: 100 

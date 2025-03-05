@@ -10,6 +10,8 @@ The sequence specific to a synthesizer can be found in `./src/data/synths/<synth
 """
 
 from typing import List, Sequence, Tuple
+
+import torch
 import data.synths
 
 
@@ -64,6 +66,9 @@ class PresetHelper:
         self._used_num_parameters_idx = [p[0] for p in self._used_parameters_descr if p[3] == "num"]
         self._used_bin_parameters_idx = [p[0] for p in self._used_parameters_descr if p[3] == "bin"]
         self._used_cat_parameters_idx = [p[0] for p in self._used_parameters_descr if p[3] == "cat"]
+        self._has_num_parameters = len(self._used_num_parameters_idx) > 0
+        self._has_bin_parameters = len(self._used_bin_parameters_idx) > 0
+        self._has_cat_parameters = len(self._used_cat_parameters_idx) > 0
         self._used_noncat_parameters_idx = sorted(
             self._used_num_parameters_idx + self._used_bin_parameters_idx
         )
@@ -154,6 +159,43 @@ class PresetHelper:
         return self._used_cat_parameters_idx
 
     @property
+    def used_num_parameters_idx(self) -> List[int]:
+        """
+        Return the indices of the numerical synthesizer parameters
+        relative to the used parameters.
+
+        Used synthesizer parameters refer to parameters that are allowed
+        to vary across training samples and are thus inputs to the preset encoder.
+        """
+        return self._used_num_parameters_idx
+
+    @property
+    def used_bin_parameters_idx(self) -> List[int]:
+        """
+        Return the indices of the binary synthesizer parameters
+        relative to the used parameters.
+
+        Used synthesizer parameters refer to parameters that are allowed
+        to vary across training samples and are thus inputs to the preset encoder.
+        """
+        return self._used_bin_parameters_idx
+
+    @property
+    def has_num_parameters(self) -> bool:
+        """Return True if the synthesizer has at least one numerical parameter."""
+        return self._has_num_parameters
+
+    @property
+    def has_bin_parameters(self) -> bool:
+        """Return True if the synthesizer has at least one binary parameter."""
+        return self._has_bin_parameters
+
+    @property
+    def has_cat_parameters(self) -> bool:
+        """Return True if the synthesizer has at least one categorical parameter."""
+        return self._has_cat_parameters
+
+    @property
     def grouped_used_parameters(self) -> dict:
         """
         Return a dictionary of the used synthesizer parameters grouped by types (`continuous` or `discrete`).
@@ -162,7 +204,7 @@ class PresetHelper:
         and are thus inputs to the preset encoder.
 
         - The `continuous` sub-dictionary contains intervals (tuple of floats) as keys and lists of indices
-        (relative to the used parameters) of numerical synthesizer parameterssharing that interval as values.
+        (relative to the used parameters) of numerical synthesizer parameters sharing that interval as values.
         Note: Categorical and binary synthesizer parameters are inherently discrete and are not included
         in the `continuous` sub-dictionary.
 
@@ -280,7 +322,7 @@ if __name__ == "__main__":
             "vca:offset",
         )
 
-    elif SYNTH == "dexed":
+    else:  # SYNTH == "dexed"
         PARAMETERS_TO_EXCLUDE_STR = (
             "cutoff",
             "resonance",

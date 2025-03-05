@@ -1,0 +1,5 @@
+# only parameter loss
+param: 1.0
+perc: 0.0
+
+name: loss_p

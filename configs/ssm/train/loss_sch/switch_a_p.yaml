@@ -1,0 +1,14 @@
+# switch from audio embedding loss to parameter loss
+param:
+  start: ${start}
+  warm: ${warm}
+  start_value: 0.0
+  end_value: 1.0
+
+perc:  
+  start: ${start}
+  warm: ${warm}
+  start_value: ${mul:1.0,${lw_a}}
+  end_value: 0.0
+
+name: switch_a_p

@@ -1,0 +1,52 @@
+# @package _global_
+
+defaults:
+  - _self_
+  - synth: ???
+  - settings: defaults
+
+
+######################################
+############ Main Configs ############
+######################################
+
+#dataset to use for finetuning
+dataset_name: mn20_hc_v1
+
+# random seed for reproducibility
+seed: 42
+
+# batch size for the train and val dataloaders
+batch_size: 64
+
+# number of epochs
+trainer:
+  max_epochs: 250
+  log_every_n_steps: 50
+  deterministic: True
+  accelerator: gpu
+  devices: 1
+  default_root_dir: ${paths.output_dir}
+
+
+# activate SLURMEnvironment auto requeue 
+slurm:
+  auto_requeue: True
+
+# for resuming training
+ckpt_path: null
+run_id: null
+##########################################
+############ Lightning Module ############
+##########################################
+# see synth configs for optimizer kwargs
+optimizer:
+  scheduler_kwargs:
+    factor: 0.5
+    patience: 10
+
+wandb_watch_args:
+  log: null
+  log_freq: 100 
+
+

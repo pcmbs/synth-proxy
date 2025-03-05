@@ -1,0 +1,31 @@
+# @package _global_
+
+# synthesizer to use
+synth: dexed
+
+# path to the checkpoint to load for the synth proxy
+path_to_ckpt: ${paths.root_dir}/checkpoints/dexed_tfm_mn20_hc_v1_ft_e230_loss0.0201.ckpt
+
+optimizer:
+  optimizer_kwargs:
+    lr: 7e-3
+    betas:
+      - 0.86
+      - 0.98
+    eps: 1e-8
+    weight_decay: 0.01
+  num_warmup_steps: 2070 # 6 epochs
+
+label_smoothing: 0.02
+
+# dexed: len(train_dataset) = 22116 if [0.8, 0.1, 0.1] split is used
+# total_num_steps = num_epochs * dataset_size // batch_size
+total_num_steps: ${total_num_steps:${trainer.max_epochs},22116,${batch_size}}
+
+# step number at which the linear schedule start for both loss
+# while warmp is the number of steps for which the linear schedule is active
+
+# to follow SSSSM-DDSP paper, the start ratio should be 0.125 (warmp around 0.375)
+# here we train for 600 epochs and start half-way through
+start: ${start:${total_num_steps},${start_ratio}}
+warm: ${warm:${total_num_steps},0.33}

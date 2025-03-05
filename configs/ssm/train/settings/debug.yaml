@@ -1,0 +1,27 @@
+# @package _global_
+
+# default debugging setup
+
+defaults:
+  - default
+  - _self_  
+  - override /hydra/hydra_logging: disabled  
+  # - override /hydra/job_logging: disabled  
+
+# disable wandb logger and callbacks
+wandb: null
+callbacks: null
+
+# disable checkpointing and output dir
+trainer:
+  max_epochs: 10
+  accelerator: gpu
+  deterministic: true
+  default_root_dir: null
+  enable_checkpointing: false
+
+# disable hydra output dir
+hydra:  
+  output_subdir: null  
+  run:  
+    dir: .

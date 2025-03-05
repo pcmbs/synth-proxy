@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1 
-FROM pytorch/pytorch:2.2.1-cuda12.1-cudnn8-runtime as dev
+FROM pytorch/pytorch:2.2.1-cuda12.1-cudnn8-runtime AS dev
 
 # Keeps Python from generating .pyc files in the container
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -23,7 +23,6 @@ ARG UNAME=nonroot
 ARG UID=1000
 ARG GID=1000
 ARG ADDITIONAL_GROUPS=
-
 
 # Creates a non-root group and user with an explicit GID and UID and 
 # change the required folders ownership to this user and give read/write access
@@ -49,11 +48,10 @@ RUN conda env update -n base --file environment.yml
 # Set the default user when running the image if last stage.
 USER $UNAME
 
-# Copy source code
-COPY --chown=$UNAME:$UNAME . .
-
-# Install local packages
-RUN /opt/conda/bin/pip install -e .
+# Copy source code and install local packages 
+# (mount source code and run `pip install -e .` when lauching the container instead)
+# COPY --chown=$UNAME:$UNAME . .
+# RUN /opt/conda/bin/pip install -e .
 
 # During debugging, this entry point will be overridden.
 CMD ["bash"]

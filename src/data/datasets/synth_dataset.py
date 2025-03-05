@@ -12,6 +12,8 @@ load_dotenv()  # take environment variables from .env
 class SynthDataset(Dataset):
     """
     Map-style dataset for generating synthetic presets for a given syntheiszer using DawDreamer for rendering.
+    It is used to export dataset of synthetic presets but should not be used for training,
+    due to the slow rendering time - see SynthDatasetPkl instead.
     """
 
     MAX_SEED_VALUE = 2**64 - 1  # 18_446_744_073_709_551_615

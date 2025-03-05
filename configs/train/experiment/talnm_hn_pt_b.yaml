@@ -25,6 +25,7 @@ solver:
     eps: 2e-7
 
   scheduler:
+    _target_: utils.lr_schedulers.wcrc_scheduler_builder
     min_lr: 2e-6
     num_warmup_steps: 7500
     warmup_factor: 1.0

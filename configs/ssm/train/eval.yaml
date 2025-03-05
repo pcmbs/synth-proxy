@@ -1,0 +1,34 @@
+# @package _global_
+
+defaults:
+  - train
+  - _self_
+  - ckpt: ???
+
+callbacks: null
+
+# batch size to compute the test metrics
+batch_size: 32
+
+# number of batch to export from the in-domain test set
+batch_to_export: 4
+
+# whether or not to run the evaluation of the out-of-domain test set (nsynth-test).
+# note that all samples will be exported
+ood_eval:
+  run: true
+  subset: valid
+  pitch: null # 60 # pitch to consider C3
+
+# other configs
+path_to_train_ckpt: ${paths.root_dir}/checkpoints/${train_ckpt}.ckpt
+
+hydra:
+  run:
+    dir: ${paths.root_dir}/logs/ssm/eval_${train_ckpt}_${now:%Y-%m-%d}_${now:%H-%M-%S}
+  sweep:
+    dir: ${paths.root_dir}/logs/ssm/eval_multirun_${now:%Y-%m-%d}_${now:%H-%M-%S}
+    subdir: ${train_ckpt}
+
+wandb:
+  project: synth_proxy_ssm_eval

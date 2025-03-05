@@ -1,0 +1,15 @@
+# path to the pkl dataset folder used for training
+path: ${paths.root_dir}/data/datasets/dexed_mn20_mel_size=2560000_seed=900_ssm_train_v1
+
+# number of samples to use for training as a multiple of dataset_size
+# i.e., dataset_size * num_samples = number of samples to use
+dataset_size: 1
+
+loader:
+  batch_size: 512
+  num_workers: 8
+  shuffle: True
+  pin_memory: False
+  drop_last: False
+
+name: dexed_mn20_mel_train_v1

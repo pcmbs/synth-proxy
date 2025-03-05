@@ -26,12 +26,14 @@ solver:
     eps: 5e-10
 
   scheduler:
+    _target_: utils.lr_schedulers.wcrc_scheduler_builder 
     min_lr: 2e-6
     num_warmup_steps: 7500
     warmup_factor: 1.0
     num_decay_steps: 392_500 # warmup+cosine corresponds to 10 epochs at bs=256
     num_restart_steps: 800_000 # 20 epochs
     restart_factor: 1.0 # full restart
+
 
 ########## training setup
 train_dataset:
@@ -40,7 +42,7 @@ train_dataset:
 
 trainer:
   # kwargs for lightning trainer
-  max_epochs: 10
+  max_epochs: 30
   
   # set True to to ensure deterministic results
   # improve reproducibility over setting seeds alone (can slightly slow training)

@@ -7,6 +7,7 @@ Adapted from https://github.com/ashleve/lightning-hydra-template/blob/main/src/t
 See configs/train for more details.
 """
 import os
+from pathlib import Path
 from typing import Any, Dict, List
 
 import hydra
@@ -22,7 +23,7 @@ import wandb
 
 from data.datasets import SynthDatasetPkl
 from utils.logging import RankedLogger, log_hyperparameters
-from utils.instantiators import instantiate_callbacks, instantiate_loggers, check_val_dataset
+from utils.instantiators import instantiate_callbacks, check_val_dataset
 from utils.synth.preset_helper import PresetHelper
 
 # logger for this file
@@ -88,14 +89,33 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
     log.info("Instantiating Callbacks...")
     callbacks: List[Callback] | None = instantiate_callbacks(cfg.get("callbacks"))
 
-    log.info("Instantiating loggers...")
-    logger: List[Logger] = instantiate_loggers(cfg.get("logger"))
+    logger: Logger | None = None
+    if not cfg.get("logger"):
+        log.warning("No logger configs found! Skipping...")
+    elif cfg.logger.get("wandb"):
+        log.info(f"Instantiating logger <{cfg.logger.wandb._target_}>")
+        logger = hydra.utils.instantiate(cfg.logger.wandb)
+    else:
+        log.info(f"Logger {cfg.logger._target_} not supported! Skipping...")
+
+    slurm_job_id = os.environ.get("SLURM_JOB_ID")
+    if slurm_job_id:
+        log.info(
+            f"Detected SLURM environment with SLURM job id {slurm_job_id}, activating Lightning SLURM plugin..."
+        )
+        slurm_plugin = SLURMEnvironment(auto_requeue=False)  # auto-requeue managed independently
+        slurm_job_id = int(slurm_job_id)
+    else:
+        log.info("No SLURM environment detected, deactivating Lightning SLURM plugin...")
+        slurm_plugin = None
 
     log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
-
-    if cfg.get("deactivate_slurm_lightning"):  # don't auto detect SLURM environment
-        SLURMEnvironment.detect = lambda: False
-    trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=logger)
+    trainer: Trainer = hydra.utils.instantiate(
+        cfg.trainer,
+        callbacks=callbacks,
+        logger=logger,
+        plugins=slurm_plugin,
+    )
 
     object_dict = {
         "cfg": cfg,
@@ -109,11 +129,28 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
         log.info("Logging hyperparameters...")
         log_hyperparameters(object_dict)
 
+    # save hydra run dir and wandb run id to resume training on SLURM environment if requested.
+    if slurm_job_id and logger and cfg.slurm.get("auto_requeue"):
+        log.info(
+            f"Job auto-requeue is enabled, writing environment variables to workspace/logs/{slurm_job_id}.sh to resume training..."
+        )
+        hydra_run_dir = hydra.core.hydra_config.HydraConfig.get()["runtime"]["output_dir"]
+        wandb_run_id = logger.version
+
+        log.info(f"HYDRA_RUN_DIR={hydra_run_dir}")
+        log.info(f"WANDB_RUN_ID={wandb_run_id}")
+
+        env_file_path = Path(os.environ["PROJECT_ROOT"]) / "logs" / f"{slurm_job_id}.sh"
+        with open(env_file_path, "w", encoding="utf-8") as env_file:
+            env_file.write(f"export HYDRA_RUN_DIR={hydra_run_dir}\n")
+            env_file.write(f"export WANDB_RUN_ID={wandb_run_id}\n")
+
     ckpt_path = cfg.get("ckpt_path")
     if ckpt_path:
         log.info(f"Resuming training from {ckpt_path}...")
     else:
         log.info("Starting training...")
+
     trainer.fit(
         model=model,
         train_dataloaders=train_loader,
@@ -149,11 +186,14 @@ def main(cfg: DictConfig) -> None:
 
 
 if __name__ == "__main__":
-    #     import sys
+    import sys
 
-    #     args = ["src/train.py", "experiment=debug_ckpt", "logger=none", "callbacks=no_lr_monitor"]
+    # args = ["src/train.py", "experiment=debug_ckpt", "logger=none", "callbacks=no_lr_monitor"]
+    # args = ["src/train.py", "experiment=diva_tfm_mn20_mel_mse", "debug=default"]
+    args = ["src/train.py", "experiment=diva_tfm_mn20_mel_mse", "trainer.accelerator=cpu"]
 
-    #     gettrace = getattr(sys, "gettrace", None)
-    #     if gettrace():
-    #         sys.argv = args
+    gettrace = getattr(sys, "gettrace", None)
+    if gettrace():
+        sys.argv = args
+
     main()  # pylint: disable=no-value-for-parameter
