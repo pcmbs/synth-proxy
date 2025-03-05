@@ -4,4 +4,4 @@ defaults:
   - override /synth: diva
   - override /loss_sch: loss_p_only
 
-train_ckpt: diva_ssm_mn20_hc_v1_loss_p_e239_loss2.0057
+train_ckpt: diva_ssm_mn20_hc_v1_loss_p_e259_loss2.0963

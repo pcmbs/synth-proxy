@@ -44,17 +44,18 @@ def evaluate(cfg: DictConfig) -> Dict[str, Any]:
     # set seed for random number generators in pytorch, numpy and python.random
     if cfg.get("seed"):
         L.seed_everything(cfg.seed, workers=True)
+    gen = torch.Generator().manual_seed(cfg.seed)
 
-    log.info(f"Instantiating training Dataset: {cfg.dataset_name}")
-    # instantiate train Dataset & DataLoader
+    log.info(f"Instantiating test Dataset: {cfg.dataset_name}")
+    # instantiate test Dataset & DataLoader
     dataset = SynthDatasetPkl(path_to_dataset=cfg.dataset.path_to_dataset, has_mel=True, split="test")
-    id_loader = DataLoader(dataset, batch_size=cfg.batch_size, shuffle=False, num_workers=0)
+    id_loader = DataLoader(dataset, batch_size=cfg.batch_size, shuffle=True, num_workers=0, generator=gen)
     if cfg.ood_eval.run:
         log.info("Instantiating Out-Of-Domain NSynth dataset...")
 
         nsynth_dataset = NSynthDataset(
             root=Path(cfg.paths.root_dir) / "data" / "datasets" / "eval",
-            subset="valid",
+            subset=cfg.ood_eval.subset,
             return_mel=True,
             mel_kwargs={**dataset.mel_cfg, **{"sr": dataset.configs_dict["sample_rate"]}},
             mel_stats=torch.load(dataset.path_to_dataset / "stats_train.pkl"),
@@ -62,7 +63,9 @@ def evaluate(cfg: DictConfig) -> Dict[str, Any]:
             audio_length=dataset.configs_dict["render_duration_in_sec"],
             pitch=cfg.ood_eval.pitch,
         )
-        nsynth_loader = DataLoader(nsynth_dataset, shuffle=False, batch_size=cfg.batch_size)
+        nsynth_loader = DataLoader(
+            nsynth_dataset, shuffle=True, batch_size=cfg.batch_size, num_workers=0, generator=gen
+        )
         loader = [id_loader, nsynth_loader]
     else:
         loader = id_loader
@@ -83,10 +86,13 @@ def evaluate(cfg: DictConfig) -> Dict[str, Any]:
     synth_proxy: nn.Module = hydra.utils.instantiate(
         cfg.synth_proxy, out_features=dataset.embedding_dim, preset_helper=preset_helper
     )
-    # get synth proxy state dict from lightning ckpt (need to rename keys to remove upper level prefix)
-    ckpt = torch.load(cfg.path_to_ckpt)
-    synth_proxy.load_state_dict({k.split(".", 1)[-1]: v for k, v in ckpt["state_dict"].items()})
-    synth_proxy.eval()
+    if cfg.tag == "loss_p":
+        synth_proxy = None
+    else:
+        # get synth proxy state dict from lightning ckpt (need to rename keys to remove upper level prefix)
+        ckpt = torch.load(cfg.path_to_ckpt)
+        synth_proxy.load_state_dict({k.split(".", 1)[-1]: v for k, v in ckpt["state_dict"].items()})
+        synth_proxy.eval()
 
     log.info("Instantiating SSM Lightning Module...")
     model = SSMLitModule(
@@ -133,6 +139,8 @@ def evaluate(cfg: DictConfig) -> Dict[str, Any]:
             "losses": {
                 "lw_cat": cfg.lw_cat,
                 "loss_sch": cfg.loss_sch.name,
+                "lw_a": cfg.lw_a,
+                "start_ratio": cfg.start_ratio,
             },
             "opt": {
                 "lr": cfg.optimizer.optimizer_kwargs.lr,

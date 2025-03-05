@@ -28,7 +28,7 @@ class NSynthDataset(Dataset):
     def __init__(
         self,
         root: Union[Path, str],
-        subset: str = "train",
+        subset: Union[str, int] = "train",
         return_mel: bool = False,
         mel_kwargs: Optional[dict] = None,
         mel_stats: Optional[dict] = None,
@@ -43,7 +43,8 @@ class NSynthDataset(Dataset):
         Args
             root (Union[Path, str]): The path to the dataset.
             Should contain the sub-folders for the splits as extracted from the .tar.gz.
-            subset (str): The subset to use. Must be one of "valid", "test", "train".
+            subset (str): The subset to use. Must be one of "valid", "test", "train" if a string.
+            It can otherwise be an integer for a subset of nsynth with a given pitch.
             families (Optional[Union[str, List[str]]]): Only keep those Instrument families.
             Valid families: "bass", "brass", "flute", "guitar", "keyboard", "mallet",
             "organ", "reed", "string", "synth_lead", "vocal"
@@ -72,8 +73,8 @@ class NSynthDataset(Dataset):
         self._fadeout_length = int(self.sr * 0.1)
         self._fadeout = torch.linspace(1, 0, self._fadeout_length)
 
-        self.subset = subset.lower()
-        assert self.subset in ["valid", "test", "train"]
+        self.subset = subset.lower() if isinstance(subset, str) else subset
+        assert self.subset in ["valid", "test", "train"] or isinstance(self.subset, int)
 
         root = Path(root) if isinstance(root, str) else root
         self.root = root / f"nsynth-{subset}"
@@ -104,7 +105,7 @@ class NSynthDataset(Dataset):
 
         log.info(f"\tFound {len(self)} samples.")
 
-        files_on_disk = set(map(lambda x: x.stem, self.root.glob("audio/*.wav")))
+        files_on_disk = set(map(lambda x: x.stem, (self.root / "audio").glob("*.wav")))
         if not set(self.attrs) <= files_on_disk:
             raise FileNotFoundError
 
@@ -132,9 +133,9 @@ class NSynthDataset(Dataset):
         if self.mel:
             audio = self._pad_or_truncate(audio)
             audio = audio if self.resampler is None else self.resampler(audio)
-            specgram = self.mel(audio).squeeze(0)
+            specgram = self.mel(audio)
             specgram = self.mel_scaler(specgram)
-            return audio.squeeze(0), idx, specgram
+            return audio.squeeze(0), idx, specgram.squeeze(0)
 
         return audio.squeeze(0), idx
 
@@ -183,12 +184,12 @@ if __name__ == "__main__":
     DATA_DIR = Path(os.environ["PROJECT_ROOT"]) / "data" / "datasets" / "eval"
 
     nsynth_dataset = NSynthDataset(
-        root=DATA_DIR, subset="test", return_mel=False, pitch=PITCH, velocities=VELOCITY
+        root=DATA_DIR, subset=PITCH, return_mel=False, pitch=PITCH, velocities=VELOCITY
     )
     nsynth_dataloader = DataLoader(nsynth_dataset, batch_size=8, shuffle=True)
 
     for i, batch in enumerate(nsynth_dataloader):
-        audios, idxs, specs = batch
+        audios, idxs = batch
         attributes = nsynth_dataset.get_attrs(idxs)
 
         if i == 10:

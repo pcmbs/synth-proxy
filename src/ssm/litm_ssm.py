@@ -117,6 +117,12 @@ class SSMLitModule(LightningModule):
         self.dataset_cfg = None
         self.renderer = None
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.estimator(x)  # mel -> presets
+        x = self.decode_presets(x)  # probabilities -> presets
+        x = self.cat_to_raw_params(x)  # categories -> raw params
+        return x
+
     def _initialize_synth_parameters_idx(self):
         # index of parameters per type in the target vector
         num_idx_target = torch.tensor(self.p_helper.used_num_parameters_idx, dtype=torch.long)
@@ -239,16 +245,16 @@ class SSMLitModule(LightningModule):
 
         # logging
         if self.p_helper.has_num_parameters:
-            self.log("train/loss/num", loss_num, on_step=True, on_epoch=True)
+            self.log("train/loss/num", loss_num.item(), on_step=True, on_epoch=True)
         if self.p_helper.has_bin_parameters:
-            self.log("train/loss/bin", loss_bin, on_step=True, on_epoch=True)
+            self.log("train/loss/bin", loss_bin.item(), on_step=True, on_epoch=True)
         if self.p_helper.has_cat_parameters:
-            self.log("train/loss/cat", loss_cat, on_step=True, on_epoch=True)
-        self.log("train/loss/param", loss_p, prog_bar=True, on_step=True, on_epoch=True)
-        self.log("train/loss/total", loss, prog_bar=True, on_step=True, on_epoch=True)
+            self.log("train/loss/cat", loss_cat.item(), on_step=True, on_epoch=True)
+        self.log("train/loss/param", loss_p.item(), prog_bar=True, on_step=True, on_epoch=True)
+        self.log("train/loss/total", loss.item(), prog_bar=True, on_step=True, on_epoch=True)
         self.log("lw/param", lw_p, on_step=True, on_epoch=True)
         if callable(self.synth_proxy):
-            self.log("train/loss/perc", loss_a, prog_bar=True, on_step=True, on_epoch=True)
+            self.log("train/loss/perc", loss_a.item(), prog_bar=True, on_step=True, on_epoch=True)
             self.log("lw/perc", lw_a, on_step=True, on_epoch=True)
 
     def on_train_start(self) -> None:
@@ -351,8 +357,8 @@ class SSMLitModule(LightningModule):
             raise NotImplementedError()
 
         if batch_idx < self.test_batch_to_export:
-            self._export_audio(audio=audio_pred, batch_idx=batch_idx, file_suffix="p", folder_suffix=str_id)
-            self._export_audio(audio=audio_target, batch_idx=batch_idx, file_suffix="t", folder_suffix=str_id)
+            self._export_audio(audio=audio_pred, batch_idx=batch_idx, file_suffix="1", folder_suffix=str_id)
+            self._export_audio(audio=audio_target, batch_idx=batch_idx, file_suffix="0", folder_suffix=str_id)
 
         # log all metrics
         for name, val in metrics_dict.items():
@@ -402,7 +408,7 @@ class SSMLitModule(LightningModule):
         return logs_dict, audio["pred"], audio["target"]
 
     def _nsynth_test_step(self, batch, batch_idx: int):
-        a, i, m = batch  # audio target, indexes, mel spectrogram
+        a, _, m = batch  # audio target, indexes, mel spectrogram
         device = a.device
 
         # predict presets and render audio
@@ -449,7 +455,7 @@ class SSMLitModule(LightningModule):
         metrics_dict = {}
         if self.p_helper.has_num_parameters:  # same as the loss
             metrics_dict["metrics/num_mae"] = self.p_metrics["num_mae"](
-                F.sigmoid(pred[:, idx["num"]]), target[:, idx["num"]]
+                pred[:, idx["num"]], target[:, idx["num"]]
             ).item()
 
         if self.p_helper.has_bin_parameters:
@@ -567,7 +573,7 @@ class SSMLitModule(LightningModule):
         export_path.mkdir(exist_ok=True, parents=True)
         for i, a in enumerate(audio):
             wavfile.write(
-                export_path / f"{batch_idx}_{i}_{file_suffix}.wav",
+                export_path / f"{batch_idx*len(audio)+i}_{file_suffix}.wav",
                 self.dataset_cfg["sample_rate"],
                 a.cpu().numpy().T,
             )

@@ -137,6 +137,7 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
             "losses": {
                 "lw_cat": cfg.lw_cat,
                 "loss_sch": cfg.loss_sch.name,
+                "lw_a": cfg.lw_a,
                 "start_ratio": cfg.start_ratio,
             },
             "opt": {
