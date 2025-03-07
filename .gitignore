@@ -15,7 +15,7 @@ __pycache__/
 .venv/
 .python-version
 others/
-
+docs/**
 # Artifacts
 checkpoints/**
 !checkpoints/.gitkeep

@@ -4,6 +4,7 @@
 
 </h1>
 
+Accompanying website: [https://pcmbs.github.io/synth-proxy/](https://pcmbs.github.io/synth-proxy/)
 
 ## Overview
 Code source repository for my master's thesis on Neural Proxies for Sound Synthesizers (available soon), in which I developed a method for approximating black-box sound synthesizers using neural networks. \
@@ -15,7 +16,11 @@ The aim of this repository is to use various neural network architectures, inclu
    <img src="https://i.imgur.com/MdOXU5R.png">  
 </p>
 
+## Sound Matching Downstream Task
+#todo
 
+## Sound Attributes Ranking Evaluation for Pretrained Audio Models
+#todo
 
 ## Installation
 
