@@ -1,0 +1,86 @@
+# Welcome to Jekyll!
+#
+# This config file is meant for settings that affect your whole blog, values
+# which you are expected to set up once and rarely edit after that. If you find
+# yourself editing this file very often, consider using Jekyll's data files
+# feature for the data you need to update frequently.
+#
+# For technical reasons, this file is *NOT* reloaded automatically when you use
+# 'bundle exec jekyll serve'. If you change this file, please restart the server process.
+#
+# If you need help with YAML syntax, here are some quick references for you:
+# https://learn-the-web.algonquindesign.ca/topics/markdown-yaml-cheat-sheet/#yaml
+# https://learnxinyminutes.com/docs/yaml/
+#
+# Site settings
+# These are used to personalize your new site. If you look in the HTML files,
+# you will see them accessed via {{ site.title }}, {{ site.email }}, and so on.
+# You can create any custom variable you would like, and they will be accessible
+# in the templates via {{ site.myvariable }}.
+
+title: Neural Proxies for Sound Synthesizers
+email: paolocombes@gmail.com
+description: >- # this means to ignore newlines until "baseurl:"
+  Accompanying website for the paper "Neural Proxies for Sound Synthesizers: Learning Perceptually Informed Preset Representations".
+baseurl: "/synth-proxy" # the subpath of your site, e.g. /blog
+url: "https://pcmbs.github.io" # the base hostname & protocol for your site, e.g. http://example.com
+
+github_username: pcmbs
+
+# Build settings
+# theme: jekyll-theme-minimal
+theme: jekyll-theme-cayman
+plugins:
+  - jekyll-feed
+markdown: kramdown
+# Exclude from processing.
+# The following items will not be processed, by default.
+# Any item listed under the `exclude:` key here will be automatically added to
+# the internal "default list".
+#
+# Excluded items can be processed by explicitly listing the directories or
+# their entries' file path in the `include:` list.
+#
+# exclude:
+#   - .sass-cache/
+#   - .jekyll-cache/
+#   - gemfiles/
+#   - Gemfile
+#   - Gemfile.lock
+#   - node_modules/
+#   - vendor/bundle/
+#   - vendor/cache/
+#   - vendor/gems/
+#   - vendor/ruby/
+
+# for automatization
+models:
+  - 0
+  - dexed_p
+  - dexed_map
+  - dexed_spa
+  - diva_p
+  - diva_map
+  - diva_spa
+
+model_names:
+  0: "Target"
+  dexed_p: "Dexed PLoss"
+  dexed_map: "Dexed Mix"
+  dexed_spa: "Dexed Switch"
+  diva_p: "Diva PLoss"
+  diva_map: "Diva Mix"
+  diva_spa: "Diva Switch"
+
+sources:
+  - bass_electronic_027-060-025
+  - bass_synthetic_034-068-100
+  - brass_acoustic_006-060-050
+  - flute_synthetic_000-055-025
+  - guitar_electronic_028-070-100
+  - keyboard_electronic_003-052-100
+  - mallet_acoustic_062-054-075
+  # - organ_electronic_104-067-025
+  - reed_acoustic_023-067-025
+  - string_acoustic_057-058-025
+  - vocal_acoustic_000-068-100
