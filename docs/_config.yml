@@ -29,7 +29,7 @@ github_username: pcmbs
 
 # Build settings
 # theme: jekyll-theme-minimal
-theme: jekyll-theme-cayman
+theme: jekyll-theme-cayman #need to add the remote theme
 plugins:
   - jekyll-feed
 markdown: kramdown
