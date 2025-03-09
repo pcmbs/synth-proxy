@@ -53,8 +53,55 @@ markdown: kramdown
 #   - vendor/gems/
 #   - vendor/ruby/
 
-# for automatization
-models:
+# for tables of audio players
+dexed_models:
+  - 0
+  - dexed_p
+  - dexed_map
+  - dexed_spa
+
+dexed_model_names:
+  0: "Target"
+  dexed_p: "Dexed PLoss"
+  dexed_map: "Dexed Mix"
+  dexed_spa: "Dexed Switch"
+
+dexed_sources:
+  - 2
+  - 6
+  - 10
+  - 14
+  - 18
+  - 21
+  - 36
+  - 38
+  - 43
+  - 57
+
+diva_models:
+  - 0
+  - diva_p
+  - diva_map
+  - diva_spa
+
+diva_model_names:
+  0: "Target"
+  diva_p: "Diva PLoss"
+  diva_map: "Diva Mix"
+  diva_spa: "Diva Switch"
+
+diva_sources:
+  - 4
+  - 5
+  - 8
+  - 13
+  - 14
+  - 17
+  - 19
+  - 30
+  - 61
+
+nsynth_models:
   - 0
   - dexed_p
   - dexed_map
@@ -63,7 +110,7 @@ models:
   - diva_map
   - diva_spa
 
-model_names:
+nsynth_model_names:
   0: "Target"
   dexed_p: "Dexed PLoss"
   dexed_map: "Dexed Mix"
@@ -72,7 +119,7 @@ model_names:
   diva_map: "Diva Mix"
   diva_spa: "Diva Switch"
 
-sources:
+nsynth_sources:
   - bass_electronic_027-060-025
   - bass_synthetic_034-068-100
   - brass_acoustic_006-060-050
@@ -80,7 +127,6 @@ sources:
   - guitar_electronic_028-070-100
   - keyboard_electronic_003-052-100
   - mallet_acoustic_062-054-075
-  # - organ_electronic_104-067-025
   - reed_acoustic_023-067-025
   - string_acoustic_057-058-025
   - vocal_acoustic_000-068-100

@@ -30,8 +30,69 @@ We evaluated three different loss scheduling configurations to assess the benefi
 - `Mix`. The parameter loss is applied for the first 200 epochs, then the perceptual loss is gradually introduced over the next 200 epochs, and the estimator network is trained for the remaining 200 epochs using both parameter and perceptual losses.
 - `Switch`. This approach is similar to the previous one, but fully transitions from parameter loss to perceptual loss, resulting in the estimator network being trained exclusively with perceptual loss during the final 200 epochs.
 
+## In-domain sounds
+### Dexed
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for model in site.dexed_models %}
+    <tr>
+      <td>{{ site.dexed_model_names[model] }}</td>
+      {% for source in site.dexed_sources %}
+      <td><audio src="{{ site.baseurl }}/assets/audio/dexed/{{ source }}_{{ model | downcase | replace: ' ', '-' }}.wav" controls></audio></td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+### Diva
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for model in site.diva_models %}
+    <tr>
+      <td>{{ site.diva_model_names[model] }}</td>
+      {% for source in site.diva_sources %}
+      <td><audio src="{{ site.baseurl }}/assets/audio/diva/{{ source }}_{{ model | downcase | replace: ' ', '-' }}.wav" controls></audio></td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+
 ## Out-of-domain sounds
-The following audio target examples are taken from the validation set of the [NSynth dataset](https://magenta.tensorflow.org/datasets/nsynth) (scroll right to access the other examples).
+The following audio target examples are taken from the validation set of the [NSynth dataset](https://magenta.tensorflow.org/datasets/nsynth).
 
 <table>
   <thead>
@@ -44,17 +105,16 @@ The following audio target examples are taken from the validation set of the [NS
       <th>Guitar elec.</th>
       <th>Keyboard elec.</th>
       <th>Mallet ac.</th>
-      <th>Organ elec.</th>
       <th>Reed ac.</th>
       <th>String ac.</th>
       <th>Vocal ac.</th>
     </tr>
   </thead>
   <tbody>
-    {% for model in site.models %}
+    {% for model in site.nsynth_models %}
     <tr>
-      <td>{{ site.model_names[model] }}</td>
-      {% for source in site.sources %}
+      <td>{{ site.nsynth_model_names[model] }}</td>
+      {% for source in site.nsynth_sources %}
       <td><audio src="{{ site.baseurl }}/assets/audio/nsynth/{{ source }}_{{ model | downcase | replace: ' ', '-' }}.wav" controls></audio></td>
       {% endfor %}
     </tr>
