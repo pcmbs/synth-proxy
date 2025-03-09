@@ -16,11 +16,12 @@ The aim of this repository is to use various neural network architectures, inclu
    <img src="https://i.imgur.com/MdOXU5R.png">  
 </p>
 
-## Sound Matching Downstream Task
-#todo
-
-## Sound Attributes Ranking Evaluation for Pretrained Audio Models
-#todo
+## To-do's
+add sections for
+- [ ] sound matching downstream tasks
+- [ ] sound attributes ranking evaluation for pretrained audio models
+- [ ] link to datasets and details on hand-crafted presets datasets generation
+- [ ] update new checkpoints
 
 ## Installation
 
