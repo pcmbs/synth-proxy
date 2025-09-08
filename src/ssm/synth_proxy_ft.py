@@ -1,11 +1,12 @@
 # pylint: disable=W0212:protected-access
 # pylint: disable=W1203:logging-fstring-interpolation
 """
-Training script.
+Synth proxy finetuning script.
 Adapted from https://github.com/ashleve/lightning-hydra-template/blob/main/src/train.py
 
 See configs/ssm/finetune/synth_proxy_ft for more details.
 """
+
 import os
 from pathlib import Path
 from typing import Any, Dict, List

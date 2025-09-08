@@ -2,11 +2,10 @@
 # pylint: disable=W1203:logging-fstring-interpolation
 # pylint: disable=E1120:no-value-for-parameter
 """
-Evaluation script.
-Adapted from https://github.com/ashleve/lightning-hydra-template/blob/main/src/train.py
-
-See configs/ssm/train for more details.
+Script to export audio samples from trained SSM models for qualitative
+evaluation on both in-domain and the out-of-domain nsynth datasets.
 """
+
 from datetime import datetime
 import os
 from pathlib import Path
@@ -142,13 +141,13 @@ if __name__ == "__main__":
             if not DEBUG:
                 for j, (pred, target) in enumerate(zip(audio_hat, audio_target)):
                     wavfile.write(
-                        id_export_path / f"{i*BATCH_SIZE+j}_{model_name}.wav",
+                        id_export_path / f"{i * BATCH_SIZE + j}_{model_name}.wav",
                         data_cfg["sample_rate"],
                         pred.cpu().numpy().T,
                     )
                     if not flag_target[synth]:
                         wavfile.write(
-                            id_export_path / f"{i*BATCH_SIZE+j}_0.wav",
+                            id_export_path / f"{i * BATCH_SIZE + j}_0.wav",
                             data_cfg["sample_rate"],
                             target.cpu().numpy().T,
                         )

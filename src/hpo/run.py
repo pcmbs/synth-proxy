@@ -3,10 +3,10 @@
 Script to run HPO for the preset embedding framework.
 
 Usage example:
-    python src/hpo/run.py tag=<tag>
+    python src/hpo/run.py m_presets=<m_preset> synth=<synth> tag=<tag>
 
 The results are exported to
-`<project-root>/logs/optuna/<m_preset>_<tag>` 
+`<project-root>/logs/optuna/<m_preset>_<tag>`
 
 Remarks:
  - If a study with the same name already exists, it will be resumed.
@@ -14,6 +14,7 @@ Remarks:
 
 The config is defined in `configs/hpo/hpo.yaml`.
 """
+
 from functools import partial
 from pathlib import Path
 import signal
@@ -255,7 +256,6 @@ def hpo(cfg: DictConfig) -> None:
 
     # Start non-startup trials except if study was aborted by user
     if not is_interrupted:
-
         # create sampler if the study was aborted exactly at the end of the startup trials
         # i.e., the pickled sampler is the one use during startup trials and need to be replaced
         if str(type(study.sampler)).split(".")[-1][:-2] != str(cfg.sampler.cfg._target_).split(".")[-1]:

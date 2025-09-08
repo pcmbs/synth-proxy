@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-#SBATCH -J synth_proxy                        # job name
+#SBATCH -J sp                                 # job name
 #SBATCH -D /home/users/p/paolo_combes_1       # batch script's working dir
 #SBATCH --open-mode=append					  # append to slurm output if already exists
 
@@ -24,65 +24,51 @@
 #SBATCH --signal=B:USR1@600
 
 
-# Whether to requeue the job if it reaches max walltime (optional)
-# job can be requeue by passing the "-r" flag
-REQUEUE_JOB=0 # don't requeue by default
-
-# Name of the singularity container and instance to run
-# instance can be changed by passing the "-i" flag
+# Name of the singularity container
 SINGULARITY_CONTAINER="synth-proxy_hpc.sif" 
-SINGULARITY_INSTANCE="synth-proxy" 
 
-# Parse arguments
-while getopts ":rti:" opt; do
-  case ${opt} in
-    r )
-      REQUEUE_JOB=1
-      ;;
-    i )
-      SINGULARITY_INSTANCE="$OPTARG"
-      ;;
-    \? )
-      echo "Usage: $(basename $0) [-r] [-t] [-i singularity-instance] args"
-	  exit 1
-      ;;
-  esac
-done
-shift "$((OPTIND -1))" # remove processed arguments
-
-# instance args
+# Get the job name, args passed to the script, and requested time limit
+JOB_NAME=$SLURM_JOB_NAME
 ARGS="$@"
+TIME_LIMIT=$(squeue -j $SLURM_JOB_ID -h --Format TimeLimit)
 
 # Function to gracefully handle shutdown
 graceful_shutdown() {
-	echo "Signal received. Initiating graceful shutdown..."
-	# Get PID from Python main process running in the container
-	python_pid=$(singularity exec instance://$SINGULARITY_INSTANCE ps -eo pid,cmd | grep "$ARGS" | grep -v grep | awk '{print $1}' | head -n 1)
+    echo "USR1 signal received. Attempting graceful shutdown..."
 
-	# Sending USR1 signal to python main process
-	echo "Received shutdown signal. Attempting graceful shutdown of the Python process with PID $python_pid..."
-	singularity exec instance://$SINGULARITY_INSTANCE kill -USR1 $python_pid
+    RUN_INFO="$(pwd)/mounts/logs/$SLURM_JOB_ID.sh"
 
-	# Wait for all subprocesses/job-steps to finish
-	wait
+    # Check if $RUN_INFO exists and source env vars from it to resubmit the job
+    if [ -f "$RUN_INFO" ]; then
+        echo "Sourcing updated environment variables from $RUN_INFO"
+        source "$RUN_INFO"
+        
+        # Display the updated values
+        echo "WANDB_RUN_ID: $WANDB_RUN_ID"
+        echo "HYDRA_RUN_DIR: $HYDRA_RUN_DIR"
 
-	# Stopping singularity instance
-	echo "Stopping Singularity instance..."
-	singularity instance stop $SINGULARITY_INSTANCE
+        # Add environment variables to the ARGS
+        ARGS_RESUME="$ARGS ckpt_path=last run_id=$WANDB_RUN_ID hydra.run.dir=$HYDRA_RUN_DIR"
 
-	# Requeue job if necessary
-	if [ $REQUEUE_JOB == 1 ]; then
-		echo "Requeueing job..."
-		scontrol requeue $SLURM_JOBID
-	fi
+        # Resubmit the job with the updated arguments (check time limit)
+        echo "Resubmitting job with updated arguments: $ARGS_RESUME"
+        sbatch --job-name="$JOB_NAME" $0 "$ARGS_RESUME"
 
-	# Exit with success
-	echo "Job interruputed successfully!"
-	exit 0
+        # Remove the file after sourcing the environment variables
+        rm -f "$RUN_INFO"
+        echo "Job resubmitted successfully."
+    
+    else
+        echo "$RUN_INFO not found, auto-requeue disabled."
+    fi
+	
+	# Wait for the srun process to finish before proceeding
+    echo "Waiting for current srun process (PID: $SRUN_PID) to finish..."
+    wait $SRUN_PID
 }
 
 # Trap the SIGUSR1 signal to initiate graceful shutdown
-trap 'graceful_shutdown' USR1 SIGINT SIGTERM
+trap 'graceful_shutdown' usr1
 
 # checking for singularity container
 if [ -f "$SINGULARITY_CONTAINER" ]; then
@@ -95,12 +81,12 @@ fi
 # Showing experiment details
 echo "Starting experiment..."
 echo "SLURM Job ID: $SLURM_JOB_ID"
+echo "TIME_LIMIT: $TIME_LIMIT"
 echo "PWD: $(pwd)"
 echo "SINGULARITY_CONTAINER: $SINGULARITY_CONTAINER"
-echo "SINGULARITY_INSTANCE: $SINGULARITY_INSTANCE"
+echo "JOB_NAME: $SLURM_JOB_NAME"
 echo "ARGS: $ARGS"
-echo "REQUEUE_JOB: $REQUEUE_JOB"
-echo "RUN_TESTS: $RUN_TESTS"
+
 
 # Load singularity
 echo "Loading singularity..."
@@ -109,16 +95,22 @@ singularity version
 
 # Run Experiment
 echo "Running Experiment..."
-srun singularity exec --cleanenv --pid --nv --cwd /workspace \
+srun singularity exec --cleanenv --pid --nv --cwd /workspace --env SLURM_JOB_ID="$SLURM_JOB_ID" \
 	--env-file $(pwd)/mounts/.env \
 	-B $(pwd)/mounts/checkpoints:/workspace/checkpoints \
 	-B $(pwd)/mounts/configs:/workspace/configs \
-	-B $(pwd)/mounts/datasets:/workspace/data/datasets \
+	-B $(pwd)/mounts/data:/workspace/data \
 	-B $(pwd)/mounts/logs:/workspace/logs \
 	-B $(pwd)/mounts/src:/workspace/src \
 	-B $(pwd)/mounts/tests:/workspace/tests \
+	-B $(pwd)/mounts/pyproject.toml:/workspace/pyproject.toml \
 	$(pwd)/$SINGULARITY_CONTAINER bash -c "pip install --user -e . && $ARGS" &
-wait
+
+# Store the PID of the background process
+SRUN_PID=$!
+
+# Wait for the background process (srun) to finish
+wait $SRUN_PID
 
 # Exit with success
 echo "Job finished successfully!"

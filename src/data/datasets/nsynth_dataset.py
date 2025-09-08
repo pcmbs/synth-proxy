@@ -1,7 +1,7 @@
 # pylint: disable=E1101:no-member,W1203
 """
 Torch Dataset class for NSynth dataset
-Adapted from: https://github.com/morris-frank/nsynth-pytorch/blob/master/nsynth/data.py 
+Adapted from: https://github.com/morris-frank/nsynth-pytorch/blob/master/nsynth/data.py
 """
 
 import json
@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Union, List, Optional
 
 import torch
-import torch.utils
 import torchaudio
 from torch.utils.data import DataLoader, Dataset
 
@@ -79,7 +78,7 @@ class NSynthDataset(Dataset):
         root = Path(root) if isinstance(root, str) else root
         self.root = root / f"nsynth-{subset}"
         if not self.root.is_dir():
-            raise ValueError("The given root path is not a directory." f"\nI got {self.root}")
+            raise ValueError(f"The given root path is not a directory.\nI got {self.root}")
 
         if not (self.root / "examples.json").is_file():
             raise ValueError("The given root path does not contain an `examples.json` file.")

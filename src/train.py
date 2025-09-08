@@ -6,6 +6,7 @@ Adapted from https://github.com/ashleve/lightning-hydra-template/blob/main/src/t
 
 See configs/train for more details.
 """
+
 import os
 from pathlib import Path
 from typing import Any, Dict, List
@@ -65,7 +66,7 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
     val_loader = DataLoader(
         dataset=val_dataset,
         batch_size=cfg.val_dataset.loader.num_ranks,
-        shuffle=False,  # never shuffle the validation dataset
+        shuffle=False,  #  don't shuffle the validation dataset
         num_workers=cfg.val_dataset.loader.num_workers,
         drop_last=True,  # drop last required for MRR
     )
