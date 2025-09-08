@@ -9,6 +9,7 @@ __pycache__/
 # Test, env, vscode, etc.
 .env
 *.egg-info
+.DS_Store
 .pytest_cache/
 .vscode/
 .devcontainer/
@@ -33,3 +34,9 @@ data/datasets/**/**
 results/**/**
 !results/.gitkeep
 
+
+docs/adding_audio_model.md
+docs/adding_synth.md
+docs/datasets.md
+docs/experiments.md
+docs/reproducibility.md
