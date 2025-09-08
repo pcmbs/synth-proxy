@@ -15,7 +15,6 @@ __pycache__/
 .venv/
 .python-version
 others/
-docs/**
 .DS_Store
 # Artifacts
 checkpoints/**
