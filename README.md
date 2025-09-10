@@ -31,7 +31,7 @@ This repository provides:
 
 Audio examples are available on the [project website](https://pcmbs.github.io/synth-proxy/).  
 
-The paper can be accessed via the JAES's website [here](https://doi.org/10.17743/jaes.2022.0219) and via  Alternatively, the postprint can be found on arXiv (todo). 
+The published version of the paper is available on JAES's website [here](https://doi.org/10.17743/jaes.2022.0219), while the Author's Accepted Manuscript (AAM) is available on [arXiv]() (todo).
 
 ## Main dependencies
 * [PyTorch](https://pytorch.org) + [Lightning](https://lightning.ai/docs/pytorch/stable/)
@@ -95,14 +95,14 @@ The detailed step-by-step instructions to replicate the results from the paper, 
 ## Citation
 ```bibtex
 @article{combes2025neural, 
-  author={combes  paolo and weinzierl  stefan and obermayer  klaus}, 
-  journal={journal of the audio engineering society}, 
-  title={neural proxies for sound synthesizers: learning perceptually informed preset representations}, 
+  author={Combes, Paolo and Weinzierl, Stefan and Obermayer, Klaus}, 
+  journal={Journal of the Audio Engineering Society}, 
+  title={Neural Proxies for Sound Synthesizers: Learning Perceptually Informed Preset Representations}, 
   year={2025}, 
   volume={73}, 
   issue={9}, 
   pages={561-577}, 
-  month={september},
+  month={September},
 } 
 ```
 
