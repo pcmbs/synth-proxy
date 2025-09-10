@@ -16,7 +16,7 @@
   <a href="https://wandb.ai/"><img src="https://img.shields.io/badge/Weights_&_Biases-FFBE00?logo=weightsandbiases&logoColor=black" alt="WandB"></a>
   <a href="https://pcmbs.github.io/synth-proxy/"><img src="https://img.shields.io/badge/Audio_Demos-Click_Here-blue" alt="Audio Demos"></a>
   <a href="https://doi.org/10.17743/jaes.2022.0219"><img src="https://img.shields.io/badge/DOI-10.17743%2Fjaes.2022.0219-blue" alt="DOI"></a>
-  <a href="https://arxiv.org/abs/arxiv_id"><img src="https://img.shields.io/badge/arXiv-Postprint-B31B1B?logo=arxiv&logoColor=white" alt="arXiv Postprint"></a>
+  <a href="https://arxiv.org/abs/2509.07635"><img src="https://img.shields.io/badge/arXiv-2509.07635-B31B1B?logo=arxiv&logoColor=white" alt="arXiv Postprint"></a>
 </p>
 
 
@@ -29,9 +29,11 @@ This repository provides:
 - Training of neural proxies (preset encoders)  
 - Evaluation on a sound-matching downstream task  
 
-Audio examples are available on the [project website](https://pcmbs.github.io/synth-proxy/).  
+→ Audio examples are available on the [project website](https://pcmbs.github.io/synth-proxy/).  
 
-The published version of the paper is available on JAES's website [here](https://doi.org/10.17743/jaes.2022.0219), while the Author's Accepted Manuscript (AAM) is available on [arXiv]() (todo).
+→ The repository for the audio models evaluation can be found [here](https://github.com/pcmbs/synth-proxy_audio-model-selection).
+
+→ The published version of the paper is available on JAES's website [here](https://doi.org/10.17743/jaes.2022.0219), while the Author's Accepted Manuscript (AAM) is available on [arXiv](https://arxiv.org/abs/2509.07635).
 
 ## Main dependencies
 * [PyTorch](https://pytorch.org) + [Lightning](https://lightning.ai/docs/pytorch/stable/)
@@ -68,7 +70,7 @@ Wrappers for the following audio models are available in the [src/models/audio/]
 
 → See [Adding audio models](docs/adding_audio_model.md) for integration instructions.
 
-→ The code for the evaluation of the pretrained audio models can be found in its corresponding [repository](https://github.com/pcmbs/synth-proxy_audio-model-selection).
+→ The code for the audio models evaluation can be found in its corresponding [repository](https://github.com/pcmbs/synth-proxy_audio-model-selection).
 
 ## Preset Encoders (Neural Proxies)
 An overview of the implemented neural proxies can be found in [src/models/preset/model\_zoo.py](./src/models/preset/model_zoo.py).
