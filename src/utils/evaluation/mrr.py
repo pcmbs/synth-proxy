@@ -11,6 +11,9 @@ from torch.utils.data import Dataset, DataLoader, Subset
 from torch import nn
 import torch.nn.functional as F
 
+from .recall import compute_bidirectional_recall
+from .modality_gap import compute_modality_gap_metrics
+
 log = logging.getLogger(__name__)
 
 
@@ -63,10 +66,12 @@ def one_vs_all_eval(
     batch_size: int = 512,
     device: str = "cpu",
     log_results: bool = True,
-) -> Tuple[float, List, Dict]:
+    distance_metric: str = "cosine",
+    k_values: List[int] = [1, 5, 10],
+) -> Tuple[float, List, Dict, float, Dict, Dict]:
     """
     Function computing the Mean Reciprocal Rank (MRR) of each samples in the dataset against all other
-    samples. It additionally compute the average L1 loss of each preset and audio embeddings.
+    samples. It additionally computes the average L1 loss, bidirectional recall metrics, and modality gap metrics.
 
     Args:
         model (nn.Module): model to be evaluated
@@ -81,6 +86,8 @@ def one_vs_all_eval(
         and retrieving the rank of the prediciton matching the target. (default: 512)
         device (str): device on which the model will be evaluated. (default: "cpu")
         log_results (bool): whether or not to log the results. (default: True)
+        distance_metric (str): distance metric for recall computation ("cosine", "euclidean", "l1"). (default: "cosine")
+        k_values (List[int]): list of k values for recall@k computation. (default: [1, 5, 10])
 
     Returns:
         A tuple containing:
@@ -89,6 +96,8 @@ def one_vs_all_eval(
         - a dictionary {rank: [preset_ids]} where each key is a rank and each value is a list of
         preset ids that ended up with that rank
         - L1 loss as float
+        - recall metrics as dictionary containing bidirectional recall metrics
+        - modality gap metrics as dictionary containing centroid distance and LR accuracy
     """
     if 0 < subset_size < len(dataset):
         subset_idx = _get_rnd_non_repeating_integers(N=len(dataset), K=subset_size, seed=seed)
@@ -152,7 +161,25 @@ def one_vs_all_eval(
     if log_results:
         log.info(f"L1 loss: {l1_loss:.4f}")  # pylint: disable=W1203
 
-    return mrr_score, top_k_mrr, ranks_dict, l1_loss
+    # compute bidirectional recall metrics
+    recall_metrics = compute_bidirectional_recall(
+        audio_embeddings, preset_embeddings, distance_metric=distance_metric, k_values=k_values
+    )
+    if log_results:
+        for k in k_values:
+            log.info(f"A->P Recall@{k}: {recall_metrics[f'a2p_recall@{k}']:.4f}")
+        log.info(f"A->P MNR: {recall_metrics['a2p_mean_normalized_rank']:.4f}")
+        for k in k_values:
+            log.info(f"P->A Recall@{k}: {recall_metrics[f'p2a_recall@{k}']:.4f}")
+        log.info(f"P->A MNR: {recall_metrics['p2a_mean_normalized_rank']:.4f}")
+
+    # compute modality gap metrics
+    modality_gap_metrics = compute_modality_gap_metrics(audio_embeddings, preset_embeddings)
+    if log_results:
+        log.info(f"Centroid Distance: {modality_gap_metrics['centroid_distance']:.4f}")
+        log.info(f"Logistic Regression Accuracy: {modality_gap_metrics['logistic_regression_accuracy']:.4f}")
+
+    return mrr_score, top_k_mrr, ranks_dict, l1_loss, recall_metrics, modality_gap_metrics
 
 
 def _create_rank_dict(ranks: torch.Tensor) -> Dict:
