@@ -8,5 +8,4 @@ from . import (
     reduce_fn,
     resolvers,
     visualization,
-    inference,
 )

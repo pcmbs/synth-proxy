@@ -21,7 +21,7 @@ def compute_mrr(preds: torch.Tensor, targets: torch.Tensor, index: int = 0, p: i
     Args:
         preds (torch.Tensor): predictions of shape (num_eval, num_preds_per_eval, preds_dim),
         where num_eval corresponds to the number reciprocal ranks to be computed, num_preds_per_eval corresponds
-        to the number of predictions per per evaluation, and preds_dim is the dimension of the predictions
+        to the number of predictions per evaluation, and preds_dim is the dimension of the predictions
         targets (torch.Tensor): target of shape (num_eval, 1, preds_dim). Note that targets.shape[1] should
         be 1 since there is a single target per evaluation.
         index (int): index of the prediction to be considered as the target in each evaluation. (default: 0)

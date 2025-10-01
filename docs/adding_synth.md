@@ -13,7 +13,7 @@ To add a new synthesizer, follow these steps:
 5. Register the synth:
    * Add the python module for the new synthesizer to the package under [src/data/synths/\_\_init\_\_.py](./src/data/synths/__init__.py).
    * Add the synthesizer name
-     * to the list of supported synthesizer names in the the `PresetHelper` class definition in [src/utils/synth/preset_helper.py](./src/utils/synth/preset_helper.py), and 
+     * to the list of supported synthesizer names in the `PresetHelper` class definition in [src/utils/synth/preset_helper.py](./src/utils/synth/preset_helper.py), and 
      * in the `SynthDataset` class definition in [src/data/datasets/synth_dataset.py](./src/data/datasets/synth_dataset.py).
 
 6. Create a configuration file under [./configs/export/synth](./configs/export/synth) for the synthesizer specifying the parameters to exclude. The excluded parameters will be set to their default values during sampling and will not be fed to the preset encoder. 
