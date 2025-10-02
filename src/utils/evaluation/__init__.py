@@ -6,7 +6,6 @@ from .modality_gap import (
     compute_centroid_distance,
     compute_logistic_regression_accuracy,
     compute_modality_gap_metrics,
-    load_embeddings_from_dataset
 )
 from .recall import (
     compute_recall_at_k,
