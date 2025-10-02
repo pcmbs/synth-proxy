@@ -81,6 +81,6 @@ python src/ssm/hpo_synth_proxy_ft.py synth=<synth>
 ```
 for synth proxies finetuning and
 ```bash
-rc/ssm/hpo_estimator_net.py synth=<synth> has_perceptual_loss=false tag=loss_p
+python src/ssm/hpo_estimator_net.py synth=<synth> has_perceptual_loss=false tag=loss_p
 ```
 for the estimator network training. The results will be saved under [logs/optuna](./logs/optuna).

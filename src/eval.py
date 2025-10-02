@@ -42,6 +42,23 @@ def _log_results_to_console(results: Dict) -> None:
         elif k == "top_k_mrr":
             for i, _ in enumerate(v["mean"]):
                 log.info(f"mrr@{i+1}: mean: {v['mean'][i]:.5f}; std.: {v['std'][i]:.5f}")
+        elif k == "recall":
+            log.info("Bidirectional Recall Metrics:")
+            # Log A->P metrics
+            for metric_name, metric_values in v.items():
+                if metric_name.startswith("a2p_"):
+                    display_name = metric_name.replace("a2p_", "A->P ")
+                    log.info(f"  {display_name}: mean: {metric_values['mean']:.5f}; std.: {metric_values['std']:.5f}")
+            # Log P->A metrics
+            for metric_name, metric_values in v.items():
+                if metric_name.startswith("p2a_"):
+                    display_name = metric_name.replace("p2a_", "P->A ")
+                    log.info(f"  {display_name}: mean: {metric_values['mean']:.5f}; std.: {metric_values['std']:.5f}")
+        elif k == "modality_gap":
+            log.info("Modality Gap Metrics:")
+            for metric_name, metric_values in v.items():
+                display_name = metric_name.replace("_", " ").title()
+                log.info(f"  {display_name}: mean: {metric_values['mean']:.5f}; std.: {metric_values['std']:.5f}")
         else:
             pass
 
@@ -86,7 +103,9 @@ def evaluate(cfg: DictConfig) -> None:
         run = wandb.init(**cfg.wandb)
 
     log.info(f"Loading checkpoint from {cfg.ckpt_path}...")
-    model = PresetEmbeddingLitModule.load_from_checkpoint(cfg.ckpt_path, preset_encoder=m_preset)
+    # Instantiate loss for checkpoint loading (required for p_norm determination)
+    loss = nn.L1Loss()
+    model = PresetEmbeddingLitModule.load_from_checkpoint(cfg.ckpt_path, preset_encoder=m_preset, loss=loss)
     model.to(device)
     model.freeze()
 
@@ -97,9 +116,11 @@ def evaluate(cfg: DictConfig) -> None:
     hc_mrr = []
     hc_loss = []
     hc_top_k_mrr = []
+    hc_recall_metrics = []
+    hc_modality_gap_metrics = []
     pbar = tqdm(range(cfg.num_runs), total=cfg.num_runs, dynamic_ncols=True)
     for i in pbar:
-        mrr, top_k_mrr, hc_ranks_dict, loss = one_vs_all_eval(
+        mrr, top_k_mrr, hc_ranks_dict, loss, recall_metrics, modality_gap_metrics = one_vs_all_eval(
             model=model,
             dataset=hc_dataset,
             subset_size=cfg.subset_size,
@@ -110,6 +131,8 @@ def evaluate(cfg: DictConfig) -> None:
         hc_mrr.append(mrr)
         hc_top_k_mrr.append(top_k_mrr)
         hc_loss.append(loss)
+        hc_recall_metrics.append(recall_metrics)
+        hc_modality_gap_metrics.append(modality_gap_metrics)
 
     hc_mrr = {"mean": np.mean(hc_mrr), "std": np.std(hc_mrr)}
     hc_top_k_mrr = np.row_stack(hc_top_k_mrr)
@@ -119,11 +142,27 @@ def evaluate(cfg: DictConfig) -> None:
     }
     hc_loss = {"mean": np.mean(hc_loss), "std": np.std(hc_loss)}
 
+    # Compute mean and std for recall metrics
+    hc_recall_metrics_agg = {}
+    if hc_recall_metrics:
+        for key in hc_recall_metrics[0].keys():
+            values = [m[key] for m in hc_recall_metrics]
+            hc_recall_metrics_agg[key] = {"mean": np.mean(values), "std": np.std(values)}
+
+    # Compute mean and std for modality gap metrics
+    hc_modality_gap_metrics_agg = {}
+    if hc_modality_gap_metrics:
+        for key in hc_modality_gap_metrics[0].keys():
+            values = [m[key] for m in hc_modality_gap_metrics]
+            hc_modality_gap_metrics_agg[key] = {"mean": np.mean(values), "std": np.std(values)}
+
     hc_results = {
         "mrr": hc_mrr,
         "top_k_mrr": hc_top_k_mrr,
         "ranks": hc_ranks_dict,
         "loss": hc_loss,
+        "recall": hc_recall_metrics_agg,
+        "modality_gap": hc_modality_gap_metrics_agg,
         "num_hc_presets": num_hc_presets,
     }
 
@@ -133,9 +172,11 @@ def evaluate(cfg: DictConfig) -> None:
     rnd_mrr = []
     rnd_loss = []
     rnd_top_k_mrr = []
+    rnd_recall_metrics = []
+    rnd_modality_gap_metrics = []
     pbar = tqdm(range(cfg.num_runs), total=cfg.num_runs, dynamic_ncols=True)
     for i in pbar:
-        mrr, top_k_mrr, _, loss = one_vs_all_eval(
+        mrr, top_k_mrr, _, loss, recall_metrics, modality_gap_metrics = one_vs_all_eval(
             model=model,
             dataset=rnd_dataset,
             subset_size=cfg.subset_size,
@@ -146,16 +187,34 @@ def evaluate(cfg: DictConfig) -> None:
         rnd_mrr.append(mrr)
         rnd_top_k_mrr.append(top_k_mrr)
         rnd_loss.append(loss)
+        rnd_recall_metrics.append(recall_metrics)
+        rnd_modality_gap_metrics.append(modality_gap_metrics)
 
     rnd_mrr = {"mean": np.mean(rnd_mrr), "std": np.std(rnd_mrr)}
     rnd_top_k_mrr = np.row_stack(rnd_top_k_mrr)
     rnd_top_k_mrr = {"mean": np.mean(rnd_top_k_mrr, axis=0), "std": np.std(rnd_top_k_mrr, axis=0)}
     rnd_loss = {"mean": np.mean(rnd_loss), "std": np.std(rnd_loss)}
 
+    # Compute mean and std for recall metrics
+    rnd_recall_metrics_agg = {}
+    if rnd_recall_metrics:
+        for key in rnd_recall_metrics[0].keys():
+            values = [m[key] for m in rnd_recall_metrics]
+            rnd_recall_metrics_agg[key] = {"mean": np.mean(values), "std": np.std(values)}
+
+    # Compute mean and std for modality gap metrics
+    rnd_modality_gap_metrics_agg = {}
+    if rnd_modality_gap_metrics:
+        for key in rnd_modality_gap_metrics[0].keys():
+            values = [m[key] for m in rnd_modality_gap_metrics]
+            rnd_modality_gap_metrics_agg[key] = {"mean": np.mean(values), "std": np.std(values)}
+
     rnd_results = {
         "mrr": rnd_mrr,
         "top_k_mrr": rnd_top_k_mrr,
         "loss": rnd_loss,
+        "recall": rnd_recall_metrics_agg,
+        "modality_gap": rnd_modality_gap_metrics_agg,
     }
 
     _log_results_to_console(rnd_results)
